@@ -1,0 +1,152 @@
+# MEV Protocol Quick Start
+
+This guide gets the repository building and running locally with reproducible steps.
+
+## 0) Clone and enter workspace
+
+```bash
+git clone <your-repository-url>
+cd mev-protocol
+```
+
+## 1) Prerequisites
+
+Install:
+
+- Rust 1.75+
+- Go 1.21+
+- Foundry (`forge`)
+- GCC/Clang or MinGW toolchain
+
+## 2) Configure environment
+
+From repository root:
+
+### Windows build
+
+```powershell
+Copy-Item .env.example .env
+notepad .env
+```
+
+### Linux/macOS build
+
+```bash
+cp .env.example .env
+$EDITOR .env
+```
+
+Fill required fields (private key, RPC endpoints, relay/auth settings) using your own credentials.
+
+Do not commit populated `.env` files.
+
+## 3) Build all components
+
+### Windows (PowerShell)
+
+```powershell
+.\scripts\build.ps1
+```
+
+### Linux/macOS
+
+```bash
+chmod +x scripts/build.sh
+./scripts/build.sh
+```
+
+Expected artifacts:
+
+- `core/target/release/mev-engine`
+- `bin/mev-node` (or `mev-node.exe` on Windows)
+- `contracts/out/`
+- `fast/lib/libmev_fast.a`
+
+## 4) Run tests
+
+From repository root:
+
+```bash
+make test
+```
+
+If `make` is unavailable on Windows, run stack-specific commands:
+
+- `cd fast && mingw32-make test` (or `make test`)
+- `cd core && cargo test`
+- `cd network && go test ./...`
+- `cd contracts && forge test`
+
+## 4.1) Run PR quality checks
+
+```bash
+make lint
+make ci-local
+```
+
+## 5) Run binaries
+
+### Integrated stack launcher (recommended on Windows)
+
+```powershell
+.\scripts\live.ps1 -ExecutionMode simulate
+```
+
+For signed relay submission instead of read-only mode:
+
+```powershell
+.\scripts\live.ps1 -ExecutionMode live
+```
+
+Live mode requires these environment variables:
+
+- `PRIVATE_KEY` (EOA used to sign executor transaction)
+- `FLASHBOTS_SIGNING_KEY` (bundle auth signature key)
+
+Optional performance toggle (auto-falls back to Rust path if C fast-path is unavailable):
+
+- `MEV_USE_FFI=1`
+
+This starts the Rust gRPC core (`grpc_server`), the Go network node, and the dashboard wiring in the correct order.
+
+### Rust engine
+
+```bash
+cd core
+cargo run --release --bin mev-engine
+```
+
+### Go network node
+
+```bash
+cd network
+go run ./cmd/mev-node
+```
+
+## 6) Optional: contracts deployment
+
+Use only after verifying network and key settings:
+
+```bash
+./scripts/deploy.sh arbitrum
+```
+
+After deployment, apply contract security configuration before live execution:
+
+- `FlashArbitrage.setExecutor(executor, true)`
+- `FlashArbitrage.setTrustedV2Router(router, true)` for each approved router
+- `FlashArbitrage.setTrustedV3Factory(factory)`
+- `MultiDexRouter.setTrustedFactories(v2Factory, v3Factory)`
+- `FlashArbitrage.setPaused(false)` only after simulation and dry-run validation
+
+## Troubleshooting
+
+- Build fails in `fast/`: verify C toolchain and `make` availability.
+- `forge` missing: run `foundryup` after Foundry installation.
+- RPC connection issues: check endpoint permissions and websocket URL correctness.
+- Missing env vars: ensure `.env` exists and required variables are populated.
+- Clippy failures: run `cd core && cargo clippy --all-targets --all-features -- -D warnings` and address warnings before PR.
+
+---
+
+For architecture details and project positioning, see [README.md](README.md).

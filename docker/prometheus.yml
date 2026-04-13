@@ -1,0 +1,21 @@
+# MEV Protocol — Prometheus scrape configuration
+#
+# Scrapes metrics from both pipeline services every 15s.
+# Add alerting rules in a separate alerts.yml when ready for production.
+
+global:
+  scrape_interval: 15s       # how often to pull metrics from targets
+  evaluation_interval: 15s   # how often to evaluate recording/alerting rules
+
+scrape_configs:
+  # Rust core engine — planned but not yet wired.
+  # Uncomment when metrics-exporter-prometheus is initialized in main.rs.
+  # - job_name: 'mev-engine'
+  #   static_configs:
+  #     - targets: ['mev-engine:9090']
+
+  # Go network node — exposes RPC latency, mempool throughput, relay submission stats
+  # Port must match MEV_METRICS_ADDR in docker-compose.yml (default :9091)
+  - job_name: 'mev-node'
+    static_configs:
+      - targets: ['mev-node:9091']

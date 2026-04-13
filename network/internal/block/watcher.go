@@ -1,0 +1,385 @@
+package block
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"math/big"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/mev-protocol/network/internal/mempool"
+	"github.com/mev-protocol/network/internal/metrics"
+	"github.com/mev-protocol/network/internal/rpc"
+	"github.com/rs/zerolog/log"
+)
+
+// Config for block watcher
+type Config struct {
+	BufferSize    int
+	PollInterval  time.Duration
+	MaxReorgDepth int
+	TrackBaseFee  bool
+}
+
+// Header contains processed block header information
+type Header struct {
+	Number     uint64
+	Hash       [32]byte
+	ParentHash [32]byte
+	Timestamp  uint64
+	BaseFee    *big.Int
+	GasUsed    uint64
+	GasLimit   uint64
+	Difficulty *big.Int
+	ObservedAt time.Time
+}
+
+// Watcher monitors new block headers
+type Watcher struct {
+	config  Config
+	rpcPool *rpc.Pool
+
+	headerChan chan *Header
+	txChan     chan *mempool.PendingTx // block-based tx feed for chains without public mempool
+	latest     *Header
+	scanSem    chan struct{} // limits concurrent scanBlockTxs goroutines
+
+	mu      sync.RWMutex
+	running bool
+	wg      sync.WaitGroup
+}
+
+// NewWatcher creates a new block watcher
+func NewWatcher(cfg Config, pool *rpc.Pool) *Watcher {
+	return &Watcher{
+		config:     cfg,
+		rpcPool:    pool,
+		headerChan: make(chan *Header, cfg.BufferSize),
+		txChan:     make(chan *mempool.PendingTx, 10000),
+		scanSem:    make(chan struct{}, 4), // max 4 concurrent block fetches
+	}
+}
+
+// BlockTxChan returns the channel of transactions extracted from blocks.
+// Use this as a secondary feed on chains without a public mempool (e.g. Arbitrum).
+func (w *Watcher) BlockTxChan() <-chan *mempool.PendingTx {
+	return w.txChan
+}
+
+// Start begins watching for new blocks
+func (w *Watcher) Start(ctx context.Context) error {
+	w.mu.Lock()
+	w.running = true
+	w.mu.Unlock()
+
+	log.Info().
+		Int("buffer", w.config.BufferSize).
+		Int("maxReorgDepth", w.config.MaxReorgDepth).
+		Msg("Starting block watcher")
+
+	w.wg.Add(1)
+	go w.subscribeLoop(ctx)
+
+	return nil
+}
+
+// Stop gracefully stops the watcher
+func (w *Watcher) Stop(ctx context.Context) {
+	w.mu.Lock()
+	w.running = false
+	w.mu.Unlock()
+
+	log.Info().Msg("Stopping block watcher")
+	w.wg.Wait()
+}
+
+// HeaderChan returns the channel for new block headers
+func (w *Watcher) HeaderChan() <-chan *Header {
+	return w.headerChan
+}
+
+// LatestBlock returns the latest observed block header
+func (w *Watcher) LatestBlock() *Header {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+	return w.latest
+}
+
+// TargetBlock returns the next block number for bundle targeting
+func (w *Watcher) TargetBlock() uint64 {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+
+	if w.latest == nil {
+		return 0
+	}
+	return w.latest.Number + 1
+}
+
+func (w *Watcher) subscribeLoop(ctx context.Context) {
+	defer w.wg.Done()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		w.mu.RLock()
+		if !w.running {
+			w.mu.RUnlock()
+			return
+		}
+		w.mu.RUnlock()
+
+		if err := w.subscribe(ctx); err != nil {
+			log.Error().Err(err).Msg("Block subscription error, reconnecting...")
+			time.Sleep(time.Second)
+		}
+	}
+}
+
+func (w *Watcher) subscribe(ctx context.Context) error {
+	client, err := w.rpcPool.GetWSClient()
+	if err != nil {
+		return err
+	}
+
+	headerChan := make(chan *types.Header, 16)
+	sub, err := client.SubscribeNewHead(ctx, headerChan)
+	if err != nil {
+		// Fallback to polling if subscription not supported
+		log.Warn().Err(err).Msg("Header subscription failed, falling back to polling")
+		return w.pollHeaders(ctx)
+	}
+	defer sub.Unsubscribe()
+
+	log.Info().Msg("Subscribed to new block headers")
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+
+		case err := <-sub.Err():
+			return err
+
+		case header := <-headerChan:
+			w.handleHeader(header)
+		}
+	}
+}
+
+func (w *Watcher) pollHeaders(ctx context.Context) error {
+	ticker := time.NewTicker(w.config.PollInterval)
+	defer ticker.Stop()
+
+	var lastBlock uint64
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+
+		case <-ticker.C:
+			client, err := w.rpcPool.GetClient()
+			if err != nil {
+				continue
+			}
+
+			blockNum, err := client.BlockNumber(ctx)
+			if err != nil {
+				metrics.RPCRequestsTotal.WithLabelValues("poll", "error").Inc()
+				continue
+			}
+
+			if blockNum > lastBlock {
+				header, err := client.HeaderByNumber(ctx, new(big.Int).SetUint64(blockNum))
+				if err != nil {
+					continue
+				}
+				w.handleHeader(header)
+				lastBlock = blockNum
+			}
+		}
+	}
+}
+
+func (w *Watcher) handleHeader(ethHeader *types.Header) {
+	observedAt := time.Now()
+
+	header := &Header{
+		Number:     ethHeader.Number.Uint64(),
+		Timestamp:  ethHeader.Time,
+		BaseFee:    ethHeader.BaseFee,
+		GasUsed:    ethHeader.GasUsed,
+		GasLimit:   ethHeader.GasLimit,
+		Difficulty: ethHeader.Difficulty,
+		ObservedAt: observedAt,
+	}
+	copy(header.Hash[:], ethHeader.Hash().Bytes())
+	copy(header.ParentHash[:], ethHeader.ParentHash.Bytes())
+
+	// Detect reorgs
+	w.mu.RLock()
+	prev := w.latest
+	w.mu.RUnlock()
+
+	if prev != nil && header.Number <= prev.Number {
+		log.Warn().
+			Uint64("expected", prev.Number+1).
+			Uint64("received", header.Number).
+			Msg("Possible reorg detected")
+	}
+
+	// Update latest
+	w.mu.Lock()
+	w.latest = header
+	w.mu.Unlock()
+
+	// Record metrics
+	metrics.BlockLatestNumber.Set(float64(header.Number))
+	metrics.BlocksProcessedTotal.Inc()
+	metrics.BlockGasRatio.Set(float64(header.GasUsed) / float64(header.GasLimit))
+
+	if header.BaseFee != nil {
+		baseFeeGwei := new(big.Float).Quo(
+			new(big.Float).SetInt(header.BaseFee),
+			new(big.Float).SetFloat64(1e9),
+		)
+		gwei, _ := baseFeeGwei.Float64()
+		metrics.BlockBaseFee.Set(gwei)
+	}
+
+	blockTime := time.Unix(int64(header.Timestamp), 0)
+	propagationDelay := observedAt.Sub(blockTime).Seconds()
+	metrics.BlockProcessingLatency.Observe(propagationDelay)
+	metrics.BlockPropagationMs.Set(propagationDelay * 1000)
+
+	log.Info().
+		Uint64("number", header.Number).
+		Uint64("gasUsed", header.GasUsed).
+		Uint64("gasLimit", header.GasLimit).
+		Float64("gasRatio", float64(header.GasUsed)/float64(header.GasLimit)).
+		Dur("propagation", observedAt.Sub(blockTime)).
+		Msg("New block")
+
+	// Emit to channel (non-blocking)
+	select {
+	case w.headerChan <- header:
+	default:
+		log.Warn().Uint64("block", header.Number).Msg("Header channel full")
+	}
+
+	// Fetch full block body and extract transactions.
+	// This is the primary tx feed on chains without a public mempool (Arbitrum, Optimism).
+	go w.scanBlockTxs(header.Number)
+}
+
+// scanBlockTxs fetches the full block via raw JSON-RPC (bypasses go-ethereum's
+// transaction decoder which chokes on Arbitrum's custom tx types 0x64/0x6a/0x6b)
+// and pushes every transaction to txChan.
+func (w *Watcher) scanBlockTxs(blockNumber uint64) {
+	// Limit concurrent block fetches to avoid RPC saturation
+	w.scanSem <- struct{}{}
+	defer func() { <-w.scanSem }()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	client, err := w.rpcPool.GetClient()
+	if err != nil {
+		log.Warn().Err(err).Uint64("block", blockNumber).Msg("No RPC client for block scan")
+		return
+	}
+
+	// Use raw JSON-RPC to avoid "transaction type not supported" from go-ethereum
+	var raw json.RawMessage
+	hexBlock := fmt.Sprintf("0x%x", blockNumber)
+	rpcClient := client.Client.Client()
+	err = rpcClient.CallContext(ctx, &raw, "eth_getBlockByNumber", hexBlock, true)
+	if err != nil {
+		log.Warn().Err(err).Uint64("block", blockNumber).Msg("Failed to fetch block body (raw)")
+		return
+	}
+
+	var blockData struct {
+		Transactions []rawTx `json:"transactions"`
+	}
+	if err := json.Unmarshal(raw, &blockData); err != nil {
+		log.Warn().Err(err).Uint64("block", blockNumber).Msg("Failed to parse block JSON")
+		return
+	}
+
+	if len(blockData.Transactions) == 0 {
+		return
+	}
+
+	for _, rtx := range blockData.Transactions {
+		ptx := rtx.toPendingTx()
+		if ptx == nil {
+			continue
+		}
+		select {
+		case w.txChan <- ptx:
+		default:
+			log.Warn().Uint64("block", blockNumber).Int("dropped", len(blockData.Transactions)).Msg("Block tx channel full")
+			return
+		}
+	}
+
+	log.Info().Uint64("block", blockNumber).Int("txs", len(blockData.Transactions)).Msg("Block txs fed to pipeline")
+}
+
+// rawTx is a minimal representation of a transaction from eth_getBlockByNumber JSON.
+type rawTx struct {
+	Hash     string `json:"hash"`
+	From     string `json:"from"`
+	To       string `json:"to"`
+	Value    string `json:"value"`
+	Gas      string `json:"gas"`
+	GasPrice string `json:"gasPrice"`
+	Input    string `json:"input"`
+	Nonce    string `json:"nonce"`
+}
+
+func (r *rawTx) toPendingTx() *mempool.PendingTx {
+	if r.Hash == "" {
+		return nil
+	}
+	ptx := &mempool.PendingTx{
+		Hash:      common.HexToHash(r.Hash),
+		Timestamp: time.Now(),
+	}
+	if r.From != "" {
+		from := common.HexToAddress(r.From)
+		ptx.From = from
+	}
+	if r.To != "" {
+		to := common.HexToAddress(r.To)
+		ptx.To = &to
+	}
+	ptx.Value = parseHexUint64(r.Value)
+	ptx.GasPrice = parseHexUint64(r.GasPrice)
+	ptx.GasLimit = parseHexUint64(r.Gas)
+	ptx.Nonce = parseHexUint64(r.Nonce)
+	if r.Input != "" && r.Input != "0x" {
+		ptx.Input = common.FromHex(r.Input)
+	}
+	return ptx
+}
+
+func parseHexUint64(s string) uint64 {
+	s = strings.TrimPrefix(s, "0x")
+	if s == "" {
+		return 0
+	}
+	v, _ := strconv.ParseUint(s, 16, 64)
+	return v
+}
