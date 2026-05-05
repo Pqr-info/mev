@@ -9,6 +9,18 @@
 ![C](https://img.shields.io/badge/C-Hot_Path-A8B9CC?style=flat-square&logo=c)
 ![Solidity](https://img.shields.io/badge/Solidity-Contracts-363636?style=flat-square&logo=solidity)
 
+
+## 📢 Attribution & Credits
+The **MEV Protocol — Low-Latency Execution Engine** incorporates architectural patterns and high-performance core logic originally developed by **[Faraone-Dev](https://github.com/Faraone-Dev)**.
+
+Specific credit is given to the original author for:
+*   **The 4-Language Pipeline:** The architecture bridging Go (Network), Rust (Detection), C (SIMD), and Solidity (Execution).
+*   **Sub-Microsecond Logic:** The lock-free MPSC queue and SIMD-accelerated keccak/RLP implementations in the `fast/` layer.
+*   **Two-Stage Simulation:** The "AMM Math Fast Filter → revm Fork" design pattern.
+*   **YulUtils Library:** The pure assembly helpers for 512-bit math and gas-optimized routing.
+
+This repository serves as an implementation and extension of these original engineering concepts. For the primary source, visit the [Faraone-Dev GitHub profile](https://github.com/Faraone-Dev).
+
 ---
 
 ## 🚀 Overview
@@ -695,8 +707,7 @@ mev-engineering-stack/
 ---
 
 ## License
-
-Proprietary. See [LICENSE](LICENSE) for details.
+This project is licensed under the MIT License. Portions of this software are used with attribution to the original author, Faraone-Dev.
 
 ---
 
