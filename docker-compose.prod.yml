@@ -61,7 +61,7 @@ services:
     container_name: bcpd
     restart: always
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/ping >/dev/null 2>&1 || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/ping')\" || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -81,7 +81,7 @@ services:
     container_name: gemini-agentd
     restart: always
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/ping >/dev/null 2>&1 || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/ping')\" || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
