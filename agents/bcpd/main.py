@@ -2,6 +2,7 @@ import json
 import threading
 import time
 import uuid
+import functools
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -50,6 +51,7 @@ def save_state(state):
 
 
 def with_state(fn):
+    @functools.wraps(fn)
     def wrapper(*args, **kwargs):
         with lock:
             state = load_state()
