@@ -26,7 +26,7 @@ if (Test-Path "d:\pqr.info\jetweb-time-machine") {
 }
 
 Write-Host "=== [PQRL0] Preparing Server Directory Topology ==="
-ssh -T -o StrictHostKeyChecking=no root@$VPS_IP "mkdir -p /opt/sos/mev /opt/sos/jetweb-time-machine /opt/sos/substrate-node-template /etc/sos /var/sos"
+$null | ssh -T -o StrictHostKeyChecking=no root@$VPS_IP "mkdir -p /opt/sos/mev /opt/sos/jetweb-time-machine /opt/sos/substrate-node-template /etc/sos /var/sos"
 
 Write-Host "=== [PQRL1] Archiving and Uploading Codebase Tarballs ==="
 # Compress using Windows native tar
@@ -39,14 +39,14 @@ if (Test-Path "jetweb-time-machine") {
 Set-Location $prev_dir
 
 # Upload via scp
-scp -o StrictHostKeyChecking=no "$env:TEMP\mev.tar.gz" "root@${VPS_IP}:/tmp/"
+$null | scp -o StrictHostKeyChecking=no "$env:TEMP\mev.tar.gz" "root@${VPS_IP}:/tmp/"
 if (Test-Path "$env:TEMP\jetweb-time-machine.tar.gz") {
-    scp -o StrictHostKeyChecking=no "$env:TEMP\jetweb-time-machine.tar.gz" "root@${VPS_IP}:/tmp/"
+    $null | scp -o StrictHostKeyChecking=no "$env:TEMP\jetweb-time-machine.tar.gz" "root@${VPS_IP}:/tmp/"
 }
-scp -o StrictHostKeyChecking=no "d:\pqr.info\mev\runlevels.toml" "root@${VPS_IP}:${REMOTE_ETC}/runlevels.toml"
+$null | scp -o StrictHostKeyChecking=no "d:\pqr.info\mev\runlevels.toml" "root@${VPS_IP}:${REMOTE_ETC}/runlevels.toml"
 
 Write-Host "=== [PQRL5] Transferring & running remote deployment ==="
-scp -o StrictHostKeyChecking=no "d:\pqr.info\mev\deploy_remote.sh" "root@${VPS_IP}:/tmp/deploy_remote.sh"
-ssh -T -o StrictHostKeyChecking=no root@$VPS_IP "bash /tmp/deploy_remote.sh"
+$null | scp -o StrictHostKeyChecking=no "d:\pqr.info\mev\deploy_remote.sh" "root@${VPS_IP}:/tmp/deploy_remote.sh"
+$null | ssh -T -o StrictHostKeyChecking=no root@$VPS_IP "bash /tmp/deploy_remote.sh"
 
 Write-Host "Deployment completed successfully!"
