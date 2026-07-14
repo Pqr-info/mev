@@ -21,6 +21,7 @@ import (
 
 	"github.com/mev-protocol/network/internal/block"
 	"github.com/mev-protocol/network/internal/gas"
+	"github.com/mev-protocol/network/internal/hooks"
 	"github.com/mev-protocol/network/internal/mempool"
 	"github.com/mev-protocol/network/internal/metrics"
 	"github.com/mev-protocol/network/internal/pipeline"
@@ -35,6 +36,8 @@ import (
 const version = "0.2.0"
 
 func main() {
+	var healerHooks *hooks.HealerHookManager
+
 	// Setup structured logging
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnixMs
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
@@ -56,7 +59,11 @@ func main() {
 
 	// Start Prometheus metrics server
 	if cfg.Metrics.Enabled {
-		metrics.ServeMetrics(cfg.Metrics.Addr)
+		metrics.ServeMetricsWithRecovery(cfg.Metrics.Addr, func() {
+			if healerHooks != nil {
+				healerHooks.TriggerRecover("mempool-monitor")
+			}
+		})
 	}
 
 	// Record node start time
@@ -81,6 +88,13 @@ func main() {
 	blockWatcher := block.NewWatcher(cfg.Block, rpcPool)
 	gasOracle := gas.NewOracle(cfg.Gas, rpcPool, blockWatcher)
 	mempoolMonitor := mempool.NewMonitor(cfg.Mempool, rpcPool)
+
+	// Initialize healer hooks
+	healerHooks = hooks.NewHealerHookManager()
+	healerHooks.RegisterRecover(func() {
+		log.Warn().Msg("Executing Healer hook: resetting mempool monitor subscription")
+		mempoolMonitor.Reset()
+	})
 
 	// Merge tx feeds: mempool pending txs + block-extracted txs.
 	// On chains without a public mempool (Arbitrum, Optimism) the mempool

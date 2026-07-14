@@ -2,6 +2,7 @@ package mempool
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -13,6 +14,8 @@ import (
 	"github.com/mev-protocol/network/internal/strategy"
 	"github.com/rs/zerolog/log"
 )
+
+var ErrReconnect = errors.New("forced reconnect requested")
 
 // Config for mempool monitor
 type Config struct {
@@ -37,14 +40,15 @@ type PendingTx struct {
 
 // Monitor watches the mempool for pending transactions
 type Monitor struct {
-	config     Config
-	rpcPool    *rpcpool.Pool
-	txChan     chan *PendingTx
-	selectors  map[string]bool
-	mu         sync.RWMutex
-	running    bool
-	wg         sync.WaitGroup
-	coreClient *strategy.Client // gRPC client to Rust core (nil = log-only mode)
+	config        Config
+	rpcPool       *rpcpool.Pool
+	txChan        chan *PendingTx
+	selectors     map[string]bool
+	reconnectChan chan struct{}
+	mu            sync.RWMutex
+	running       bool
+	wg            sync.WaitGroup
+	coreClient    *strategy.Client // gRPC client to Rust core (nil = log-only mode)
 }
 
 // NewMonitor creates a new mempool monitor
@@ -55,10 +59,11 @@ func NewMonitor(cfg Config, pool *rpcpool.Pool) *Monitor {
 	}
 
 	return &Monitor{
-		config:    cfg,
-		rpcPool:   pool,
-		txChan:    make(chan *PendingTx, cfg.BufferSize),
-		selectors: selectors,
+		config:        cfg,
+		rpcPool:       pool,
+		txChan:        make(chan *PendingTx, cfg.BufferSize),
+		selectors:     selectors,
+		reconnectChan: make(chan struct{}, 1),
 	}
 }
 
@@ -97,6 +102,16 @@ func (m *Monitor) Stop(ctx context.Context) {
 
 	log.Info().Msg("Stopping mempool monitor")
 	m.wg.Wait()
+}
+
+// Reset triggers a forced reconnect error in the active subscription loop
+func (m *Monitor) Reset() {
+	select {
+	case m.reconnectChan <- struct{}{}:
+		log.Info().Msg("[Monitor] Reset signal dispatched to trigger reconnection")
+	default:
+		log.Debug().Msg("[Monitor] Reset signal already pending")
+	}
 }
 
 // TxChan returns the channel for pending transactions
@@ -156,6 +171,9 @@ func (m *Monitor) subscribe(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
+
+		case <-m.reconnectChan:
+			return ErrReconnect
 
 		case err := <-sub.Err():
 			metrics.MempoolSubscriptionErrors.Inc()

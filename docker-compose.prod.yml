@@ -1,0 +1,208 @@
+version: "3.9"
+
+services:
+  mev-engine:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: mev-engine
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep mev-engine >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    environment:
+      - MEV_CONFIG=/app/config/config.json
+      - LOG_LEVEL=info
+    volumes:
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+    networks:
+      - sos-network
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+
+  mev-node:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.network
+    container_name: mev-node
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9091/metrics >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    environment:
+      - CONFIG_PATH=/app/config/chains.json
+      - MEV_METRICS_ADDR=:9091
+      - HETZNER_API_KEY=${HETZNER_API_KEY}
+    ports:
+      - "9091:9091"
+    volumes:
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+      - .env:/app/.env
+    networks:
+      - sos-network
+    depends_on:
+      mev-engine:
+        condition: service_healthy
+
+  bcpd:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.bcpd
+    container_name: bcpd
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/ping >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - ./.copilot_backchannel.json:/app/.copilot_backchannel.json
+    environment:
+      - GEMINI_AGENT_URL=http://gemini-agentd:8081/interact
+    ports:
+      - "8082:8080"
+    networks:
+      - sos-network
+
+  gemini-agentd:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.gemini-agentd
+    container_name: gemini-agentd
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8081/ping >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    ports:
+      - "8081:8081"
+    networks:
+      - sos-network
+    depends_on:
+      bcpd:
+        condition: service_healthy
+
+  mesh-adapter:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.mesh-adapter
+    container_name: mesh-adapter
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    environment:
+      - MEV_NODE_URL=http://mev-node:9091
+      - BCPD_URL=http://bcpd:8080
+      - PORT=8080
+    ports:
+      - "8080:8080"
+    networks:
+      - sos-network
+    depends_on:
+      mev-node:
+        condition: service_healthy
+      gemini-agentd:
+        condition: service_healthy
+      bcpd:
+        condition: service_healthy
+
+  substrate-node:
+    build:
+      context: ../
+      dockerfile: jetweb-time-machine/Dockerfile
+    container_name: substrate-node
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:9944/ >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    ports:
+      - "9944:9944"
+      - "9933:9933"
+    networks:
+      - sos-network
+
+  time-machine-go:
+    build:
+      context: ../jetweb-time-machine
+      dockerfile: Dockerfile.l0-go
+    container_name: time-machine-go
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep time-machine-go >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    ports:
+      - "8081:8080"
+    networks:
+      - sos-network
+    depends_on:
+      substrate-node:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: mev-prometheus
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    ports:
+      - "9090:9090"
+    networks:
+      - sos-network
+
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: mev-grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=mev_admin
+    ports:
+      - "3000:3000"
+    networks:
+      - sos-network
+    depends_on:
+      - prometheus
+
+  ouroboros:
+    build:
+      context: C:/Users/theal/ouroboros-auditor
+      dockerfile: Dockerfile
+    container_name: ouroboros-auditor
+    restart: always
+    networks:
+      - sos-network
+
+networks:
+  sos-network:
+    driver: bridge
+
+volumes:
+  prometheus_data:
+  grafana_data:

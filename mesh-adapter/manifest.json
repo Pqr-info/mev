@@ -1,0 +1,27 @@
+{
+  "auth": {
+    "grafana": {
+      "password": "",
+      "username": ""
+    }
+  },
+  "endpoints": {
+    "grafana": "http://localhost:3000",
+    "health": "http://localhost:8080/health",
+    "metrics": "http://localhost:9091/metrics",
+    "prometheus": "http://localhost:9090",
+    "recovery": "http://localhost:8080/healer/trigger-recovery",
+    "ticketApi": "http://localhost:8080/rt/REST/2.0/tickets",
+    "timeslipGen": "http://localhost:8080/timeslip-generator"
+  },
+  "hints": [
+    "Use /rt/REST/2.0/tickets for RT-style SOS operations",
+    "Ouroboros should own restarts and health reconciliation"
+  ],
+  "hosts": {
+    "alias": "sos-flagship",
+    "primary": ""
+  },
+  "lastUpdated": "2026-07-12T08:15:01Z",
+  "service": "sos"
+}

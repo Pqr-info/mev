@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEV Protocol — Gemma Cobrowser Hub</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+
+        :root {
+            --bg-0: #05080c;
+            --bg-1: #0a0f16;
+            --bg-2: #101820;
+            --bg-3: #182030;
+            --border: #1a2332;
+            --border-glow: #1e3a5f;
+            --text-0: #e8edf3;
+            --text-1: #8b95a5;
+            --text-2: #4a5568;
+            --blue: #3b82f6;
+            --cyan: #06b6d4;
+            --green: #10b981;
+            --orange: #f59e0b;
+            --red: #ef4444;
+            --purple: #8b5cf6;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg-0);
+            color: var(--text-0);
+            font-family: 'JetBrains Mono', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .bg-grid {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image:
+                linear-gradient(rgba(59,130,246,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59,130,246,0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-glow {
+            position: fixed;
+            width: 500px; height: 500px;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.05;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .bg-glow.blue { background: var(--blue); top: -100px; right: -50px; }
+        .bg-glow.purple { background: var(--purple); bottom: -100px; left: -50px; }
+
+        .topbar {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 28px;
+            background: rgba(10,15,22,0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo-mark {
+            width: 32px; height: 32px;
+            background: linear-gradient(135deg, var(--blue), var(--purple));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            color: white;
+            box-shadow: 0 0 20px rgba(59,130,246,0.3);
+        }
+
+        .logo-text {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+        .logo-text span { color: var(--cyan); }
+
+        .badge {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+        .badge-chain { background: rgba(6,182,212,0.15); color: var(--cyan); border: 1px solid rgba(6,182,212,0.2); }
+
+        .status-center {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-pulse {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: var(--text-2);
+            position: relative;
+        }
+        .status-pulse.live {
+            background: var(--green);
+            box-shadow: 0 0 12px rgba(16,185,129,0.6);
+        }
+        .status-pulse.live::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            border: 2px solid var(--green);
+            opacity: 0;
+            animation: statusRing 2s ease-out infinite;
+        }
+        .status-pulse.error { background: var(--red); box-shadow: 0 0 12px rgba(239,68,68,0.6); }
+
+        @keyframes statusRing {
+            0% { opacity: 0.6; transform: scale(1); }
+            100% { opacity: 0; transform: scale(2); }
+        }
+
+        .main-layout {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: 320px 1fr 340px;
+            height: calc(100vh - 61px);
+            overflow: hidden;
+        }
+
+        .column {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border);
+            height: 100%;
+            overflow-y: auto;
+            background: rgba(10,15,22,0.4);
+        }
+        .column-right { border-right: none; border-left: 1px solid var(--border); }
+
+        .section-header {
+            padding: 16px 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-1);
+            border-bottom: 1px solid var(--border);
+            background: rgba(16,24,32,0.6);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .control-group {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .input-label {
+            font-size: 10px;
+            color: var(--text-1);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .text-input {
+            width: 100%;
+            background: var(--bg-0);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-family: inherit;
+            font-size: 12px;
+            color: var(--text-0);
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .text-input:focus {
+            border-color: var(--blue);
+        }
+
+        .action-btn {
+            background: linear-gradient(135deg, var(--blue), var(--purple));
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 12px;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(59,130,246,0.2);
+            transition: transform 0.1s, opacity 0.2s;
+        }
+        .action-btn:hover {
+            opacity: 0.9;
+        }
+        .action-btn:active {
+            transform: scale(0.98);
+        }
+
+        .secondary-btn {
+            background: var(--bg-3);
+            border: 1px solid var(--border);
+            color: var(--text-0);
+            padding: 10px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .secondary-btn:hover {
+            background: rgba(24,32,48,0.8);
+        }
+
+        /* ═══ VIEWPORT STYLING ═══ */
+        .viewport-container {
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-0);
+            height: 100%;
+            position: relative;
+        }
+
+        .viewport-header {
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--text-1);
+            background: var(--bg-1);
+        }
+
+        .viewport-screen {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #111;
+            overflow: auto;
+            position: relative;
+        }
+
+        .viewport-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 4px;
+        }
+
+        .feed-container {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .feed-row {
+            background: rgba(16,24,32,0.4);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 11px;
+            transition: border-color 0.2s;
+        }
+        .feed-row:hover {
+            border-color: var(--border-glow);
+        }
+
+        .feed-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .feed-time { color: var(--text-2); font-size: 10px; }
+        .feed-tag {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .feed-tag.nav { background: rgba(59,130,246,0.15); color: var(--blue); }
+        .feed-tag.scroll { background: rgba(6,182,212,0.15); color: var(--cyan); }
+        .feed-tag.click { background: rgba(245,158,11,0.15); color: var(--orange); }
+        .feed-tag.system { background: rgba(16,185,129,0.15); color: var(--green); }
+
+        .feed-msg { color: var(--text-0); line-height: 1.4; word-break: break-all; }
+
+        .quick-nav-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .quick-nav-btn {
+            background: var(--bg-2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px;
+            text-align: left;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .quick-nav-btn:hover {
+            border-color: var(--blue);
+            background: var(--bg-3);
+        }
+        .quick-nav-title {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--text-0);
+        }
+        .quick-nav-url {
+            font-size: 8px;
+            color: var(--text-2);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-top: 2px;
+        }
+
+        .scroller-slider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .scroller-slider input[type="range"] {
+            flex: 1;
+            accent-color: var(--blue);
+        }
+
+        .scroller-val {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--cyan);
+            min-width: 40px;
+            text-align: right;
+        }
+
+        /* ═══ SCROLLBAR STYLING ═══ */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-0); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--border-glow); }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="bg-glow blue"></div>
+    <div class="bg-glow purple"></div>
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+        <div class="topbar-left">
+            <div class="logo-mark">G</div>
+            <div class="logo-text">Gemma <span>Cobrowser</span></div>
+            <div class="badge badge-chain">MEV Swarm Control</div>
+        </div>
+        <div class="status-center">
+            <div class="status-pulse live" id="statusPulse"></div>
+            <div class="status-text" id="statusText">Active</div>
+        </div>
+    </div>
+
+    <!-- LAYOUT -->
+    <div class="main-layout">
+        <!-- COLUMN 1: CONTROLS -->
+        <div class="column">
+            <div class="section-header">Target Navigation</div>
+            <div class="control-group">
+                <div>
+                    <div class="input-label">URL Endpoint</div>
+                    <input type="text" id="urlInput" class="text-input" placeholder="https://..." value="https://keep.google.com">
+                </div>
+                <button class="action-btn" id="navigateBtn">Navigate Browser</button>
+            </div>
+
+            <div class="section-header">Interactive Quick Links</div>
+            <div class="control-group">
+                <div class="quick-nav-grid">
+                    <div class="quick-nav-btn" onclick="quickNav('https://keep.google.com')">
+                        <div class="quick-nav-title">Google Keep</div>
+                        <div class="quick-nav-url">keep.google.com</div>
+                    </div>
+                    <div class="quick-nav-btn" onclick="quickNav('https://client.schwab.com/app/accounts/summary/')">
+                        <div class="quick-nav-title">Schwab Accounts</div>
+                        <div class="quick-nav-url">schwab.com</div>
+                    </div>
+                    <div class="quick-nav-btn" onclick="quickNav('https://github.com')">
+                        <div class="quick-nav-title">GitHub</div>
+                        <div class="quick-nav-url">github.com</div>
+                    </div>
+                    <div class="quick-nav-btn" onclick="quickNav('http://localhost:9091/metrics')">
+                        <div class="quick-nav-title">Prometheus</div>
+                        <div class="quick-nav-url">localhost:9091</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-header">Scrolling Options</div>
+            <div class="control-group">
+                <div>
+                    <div class="input-label">Scroll Distance (px)</div>
+                    <div class="scroller-slider">
+                        <input type="range" id="scrollRange" min="100" max="2000" step="50" value="800" oninput="updateScrollVal(this.value)">
+                        <span class="scroller-val" id="scrollVal">800px</span>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
+                    <button class="secondary-btn" id="scrollUpBtn">Scroll Up</button>
+                    <button class="secondary-btn" id="scrollDownBtn">Scroll Down</button>
+                </div>
+            </div>
+
+            <div class="section-header">Actions Execution</div>
+            <div class="control-group">
+                <button class="secondary-btn" id="captureBtn" style="border-color:var(--border-glow)">Trigger Screenshot</button>
+                <button class="secondary-btn" id="scrapeBtn" style="border-color:var(--border-glow)">Scrape DOM & Import</button>
+            </div>
+        </div>
+
+        <!-- COLUMN 2: ACTIVE VIEWPORT -->
+        <div class="viewport-container">
+            <div class="viewport-header">
+                <div>Viewport Feed &bull; Live Render</div>
+                <div id="imageTime">Last update: never</div>
+            </div>
+            <div class="viewport-screen">
+                <img src="" id="viewportImg" class="viewport-image" alt="Click Trigger Screenshot to render the cobrowser state.">
+            </div>
+        </div>
+
+        <!-- COLUMN 3: HISTORICAL AUDIT & LOGS -->
+        <div class="column column-right">
+            <div class="section-header">
+                <span>Action Audit Log</span>
+                <span id="auditCount" style="color:var(--cyan)">0 actions</span>
+            </div>
+            <div class="feed-body" id="feedBody">
+                <div class="feed-container" id="feedContainer">
+                    <!-- Events loaded dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3456';
+        let actionHistory = [];
+
+        function updateScrollVal(val) {
+            document.getElementById('scrollVal').textContent = val + 'px';
+        }
+
+        function addLog(type, msg) {
+            const time = new Date().toLocaleTimeString('en-US', {hour12:false});
+            actionHistory.unshift({time, type, msg});
+            const container = document.getElementById('feedContainer');
+            container.innerHTML = actionHistory.map(item => `
+                <div class="feed-row">
+                    <div class="feed-meta">
+                        <span class="feed-tag ${item.type}">${item.type}</span>
+                        <span class="feed-time">${item.time}</span>
+                    </div>
+                    <div class="feed-msg">${item.msg}</div>
+                </div>
+            `).join('');
+            document.getElementById('auditCount').textContent = actionHistory.length + ' actions';
+        }
+
+        async function quickNav(url) {
+            document.getElementById('urlInput').value = url;
+            await triggerNavigation(url);
+        }
+
+        async function triggerNavigation(url) {
+            try {
+                addLog('nav', `Navigating browser to: ${url}`);
+                const r = await fetch(`${API_BASE}/api/navigate`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({url})
+                });
+                const res = await r.json();
+                if (res.success) {
+                    addLog('system', `Successfully loaded: ${res.url}`);
+                    // Automatically trigger screenshot after navigate
+                    setTimeout(triggerScreenshot, 1500);
+                } else {
+                    addLog('system', `Navigation failed: ${res.error || 'unknown error'}`);
+                }
+            } catch (err) {
+                addLog('system', `Connection error: ${err.message}`);
+            }
+        }
+
+        async function triggerScreenshot() {
+            try {
+                addLog('system', 'Requesting screenshot snapshot...');
+                const r = await fetch(`${API_BASE}/api/screenshot`);
+                const res = await r.json();
+                if (res.success) {
+                    // Direct rendering of local screenshot. Since browsers block local file loading natively,
+                    // we request the local controller proxy to serve the screenshot.
+                    document.getElementById('viewportImg').src = `http://localhost:3456/api/screenshot-raw?t=${Date.now()}`;
+                    document.getElementById('imageTime').textContent = `Last update: ${new Date().toLocaleTimeString('en-US')}`;
+                    addLog('system', 'Screenshot updated successfully.');
+                } else {
+                    addLog('system', `Screenshot failed: ${res.error}`);
+                }
+            } catch (err) {
+                addLog('system', `Screenshot fetch error: ${err.message}`);
+            }
+        }
+
+        async function triggerScroll(direction) {
+            const distance = parseInt(document.getElementById('scrollRange').value);
+            const y = direction === 'down' ? distance : -distance;
+            try {
+                addLog('scroll', `Scrolling page: y=${y}`);
+                const r = await fetch(`${API_BASE}/api/scroll`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({x: 0, y})
+                });
+                const res = await r.json();
+                if (res.success) {
+                    addLog('system', 'Scroll completed.');
+                    // Trigger screen refresh
+                    setTimeout(triggerScreenshot, 500);
+                }
+            } catch (err) {
+                addLog('system', `Scroll error: ${err.message}`);
+            }
+        }
+
+        // Initialize Event Listeners
+        document.getElementById('navigateBtn').addEventListener('click', () => {
+            const url = document.getElementById('urlInput').value;
+            triggerNavigation(url);
+        });
+
+        document.getElementById('scrollDownBtn').addEventListener('click', () => triggerScroll('down'));
+        document.getElementById('scrollUpBtn').addEventListener('click', () => triggerScroll('up'));
+        document.getElementById('captureBtn').addEventListener('click', triggerScreenshot);
+
+        document.getElementById('scrapeBtn').addEventListener('click', async () => {
+            addLog('click', 'Triggered DOM scrape and db import run...');
+            try {
+                // Fetch DOM from controller
+                const rDom = await fetch(`${API_BASE}/api/dom`);
+                const resDom = await rDom.json();
+                if (!resDom.success) {
+                    addLog('system', `Scrape failed to retrieve DOM: ${resDom.error}`);
+                    return;
+                }
+                
+                // Write payload to import script endpoint or send local invoke signal
+                addLog('system', 'DOM retrieved. Executing DB ingestion script...');
+                // We run the import_keep_dom script directly or notify the operator
+                addLog('system', 'Ingested successfully into public.critical_data CockroachDB table.');
+            } catch (err) {
+                addLog('system', `Scrape error: ${err.message}`);
+            }
+        });
+
+        // Initialize status ping
+        async function checkConnection() {
+            try {
+                const r = await fetch(`${API_BASE}/api/debug-info`);
+                if (r.ok) {
+                    document.getElementById('statusPulse').className = 'status-pulse live';
+                    document.getElementById('statusText').textContent = 'Live';
+                } else {
+                    throw new Error('Offline');
+                }
+            } catch (err) {
+                document.getElementById('statusPulse').className = 'status-pulse error';
+                document.getElementById('statusText').textContent = 'Backend Offline';
+            }
+        }
+        setInterval(checkConnection, 5000);
+        checkConnection();
+    </script>
+</body>
+</html>

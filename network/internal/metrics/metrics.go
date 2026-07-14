@@ -249,6 +249,39 @@ func ServeMetrics(addr string) {
 	}()
 }
 
+// ServeMetricsWithRecovery starts the Prometheus metrics server and control endpoints
+func ServeMetricsWithRecovery(addr string, onRecover func()) {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", corsMiddleware(promhttp.Handler()))
+
+	mux.HandleFunc("/control/recover", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		log.Warn().Msg("Received control/recover request")
+		if onRecover != nil {
+			onRecover()
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"ok","message":"recovery triggered"}`))
+	})
+
+	server := &http.Server{
+		Addr:    addr,
+		Handler: mux,
+	}
+
+	go func() {
+		log.Info().Str("addr", addr).Msg("Metrics and Control server starting")
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Error().Err(err).Msg("Metrics and Control server error")
+		}
+	}()
+}
+
+
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")

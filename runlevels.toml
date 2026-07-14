@@ -1,0 +1,62 @@
+# Spark-OS (SOS) Runlevels Configuration
+# Single Source of Truth for Sovereign Mesh Activation
+
+[runlevels]
+
+[runlevels.PQRL0]
+name = "Base Infrastructure"
+mounts = ["/opt/sos/volumes"]
+supervisor = "sos-loader"
+
+[runlevels.PQRL1]
+name = "Model Discovery"
+discovery_path = "/var/sos/models.json"
+loader = "litert-lm"
+
+[runlevels.PQRL2]
+name = "Inference API"
+expose_port = 8000
+endpoint = "/v1/chat/completions"
+
+[runlevels.PQRL3]
+name = "Cognitive Arbitration"
+brains = ["flash3.5", "gemma4-e2b"]
+config_path = "/etc/sos/sovereign.toml"
+
+[runlevels.PQRL4]
+name = "Executor Binding"
+executor = "sos-exec"
+
+[runlevels.PQRL5]
+name = "Database & State Spine"
+db = "cockroach"
+schemas = [
+    "lineage",
+    "timeslips",
+    "mutations",
+    "agents",
+    "memory_chunks",
+    "temporal_events"
+]
+
+[runlevels.PQRL6]
+name = "System Ingress"
+api = "sos-api"
+
+[runlevels.PQRL7]
+name = "Temporal Arbitration & MEV"
+mev = "sos-mev"
+time_machine = "sos-tm"
+bind = "temporal_engines"
+bcpd = "sos-bcpd"
+gemini_agent = "gemini-agentd"
+
+[runlevels.PQRL8]
+name = "Memory Engine & Retrieval"
+vector_store = "qdrant"
+ingestion = "memory_chunks"
+
+[runlevels.PQRL9]
+name = "Telemetry & Heartbeat"
+ready_flag = "SOVEREIGN_READY"
+telemetry = "prometheus-grafana"

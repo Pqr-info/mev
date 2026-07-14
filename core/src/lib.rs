@@ -20,6 +20,7 @@ pub mod types;
 pub mod mempool;
 pub mod bench;
 pub mod grpc;
+pub mod zeta;
 
 // Arbitrum-specific modules
 pub mod arbitrum;

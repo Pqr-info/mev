@@ -1,0 +1,6 @@
+FROM python:3.10-slim
+WORKDIR /app
+RUN pip install --no-cache-dir flask google-genai
+COPY agents/gemini-agentd/main.py /app/main.py
+EXPOSE 8081
+ENTRYPOINT ["python", "main.py"]
