@@ -52,8 +52,10 @@ docker compose -f docker-compose.prod.yml up -d --build substrate-node mev-engin
 wait_for_container "substrate-node"
 wait_for_container "mev-engine"
 
-# Build and run node, adapters and markets sidecar
-docker compose -f docker-compose.prod.yml up -d --build mev-node time-machine-go mesh-adapter markets
+# Build and run node, adapters, and sidecars
+docker compose -f docker-compose.prod.yml up -d --build bcpd gemini-agentd mev-node time-machine-go mesh-adapter markets
+wait_for_container "bcpd"
+wait_for_container "gemini-agentd"
 wait_for_container "mev-node"
 wait_for_container "time-machine-go"
 wait_for_container "mesh-adapter"
@@ -67,4 +69,25 @@ echo "VERIFICATION: Triggering healer recovery test on adapter..."
 sleep 5
 curl -s -X POST http://localhost:8080/healer/trigger-recovery
 echo ""
+
+echo "Verifying health endpoints..."
+if ! curl -sf http://localhost:8082/ping >/dev/null; then
+  echo "Error: bcpd is unreachable or degraded" >&2
+  exit 1
+fi
+
+if ! curl -sf http://localhost:8080/ping >/dev/null; then
+  echo "Error: mesh-adapter is unreachable" >&2
+  exit 1
+fi
+
+STATE_JSON=$(curl -sf http://localhost:8082/state || echo "")
+if [ -n "$STATE_JSON" ]; then
+  GEMINI_STATUS=$(echo "$STATE_JSON" | grep -o '"status": "[^"]*"' | head -n 1 | cut -d'"' -f4 || echo "offline")
+  if [ "$GEMINI_STATUS" != "online" ]; then
+    echo "Error: Gemini Agent status is: $GEMINI_STATUS (expected online)" >&2
+    exit 1
+  fi
+fi
+
 echo "SOS stack started successfully!"
