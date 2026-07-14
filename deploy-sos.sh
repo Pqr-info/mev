@@ -32,7 +32,7 @@ wait_for_container() {
 }
 
 echo "=== [PQRL0] Preparing Server Directory Topology ==="
-ssh -o StrictHostKeyChecking=no root@"$VPS_IP" << 'EOF'
+ssh -T -o StrictHostKeyChecking=no root@"$VPS_IP" << 'EOF'
   mkdir -p /opt/sos/mev
   mkdir -p /opt/sos/jetweb-time-machine
   mkdir -p /opt/sos/substrate-node-template
@@ -60,14 +60,14 @@ if [ -f /tmp/substrate-node-template.tar.gz ]; then
 fi
 scp -o StrictHostKeyChecking=no "$SOS_WSL_SOURCE_ROOT/runlevels.toml" root@"$VPS_IP":"$REMOTE_ETC"/runlevels.toml
 
-ssh -o StrictHostKeyChecking=no root@"$VPS_IP" << EOF
+ssh -T -o StrictHostKeyChecking=no root@"$VPS_IP" << EOF
   tar -xzf /tmp/mev.tar.gz -C "$REMOTE_OPT"/mev/
   tar -xzf /tmp/jetweb-time-machine.tar.gz -C "$REMOTE_OPT"/
   tar -xzf /tmp/substrate-node-template.tar.gz -C "$REMOTE_OPT"/
 EOF
 
 echo "=== [PQRL5] Initializing Configuration & State Spine ==="
-ssh -o StrictHostKeyChecking=no root@"$VPS_IP" << EOF
+ssh -T -o StrictHostKeyChecking=no root@"$VPS_IP" << EOF
   cd "$REMOTE_OPT"/mev
   cp .env.example .env
   # Update environment variables
@@ -75,7 +75,7 @@ ssh -o StrictHostKeyChecking=no root@"$VPS_IP" << EOF
 EOF
 
 echo "=== [PQRL7] Starting Core Consensus & MEV Services (Docker Stack) ==="
-ssh -o StrictHostKeyChecking=no root@"$VPS_IP" << 'EOF'
+ssh -T -o StrictHostKeyChecking=no root@"$VPS_IP" << 'EOF'
   cd "$REMOTE_OPT"/mev
   echo "Booting substrate-node & mev-engine..."
   docker compose -f docker-compose.prod.yml up -d --build substrate-node mev-engine
@@ -102,17 +102,18 @@ ssh -o StrictHostKeyChecking=no root@"$VPS_IP" << 'EOF'
   wait_for_container "substrate-node"
   wait_for_container "mev-engine"
 
-  echo "Booting bcpd, gemini-agentd, mev-node, time-machine-go, and mesh-adapter..."
-  docker compose -f docker-compose.prod.yml up -d --build bcpd gemini-agentd mev-node time-machine-go mesh-adapter
+  echo "Booting bcpd, gemini-agentd, mev-node, time-machine-go, mesh-adapter, and markets sidecar..."
+  docker compose -f docker-compose.prod.yml up -d --build bcpd gemini-agentd mev-node time-machine-go mesh-adapter markets
   wait_for_container "bcpd"
   wait_for_container "gemini-agentd"
   wait_for_container "mev-node"
   wait_for_container "time-machine-go"
   wait_for_container "mesh-adapter"
+  wait_for_container "markets"
 EOF
 
 echo "=== [PQRL9] Booting Observability Infrastructure & Testing Heath ==="
-ssh -o StrictHostKeyChecking=no root@"$VPS_IP" << EOF
+ssh -T -o StrictHostKeyChecking=no root@"$VPS_IP" << EOF
   cd "$REMOTE_OPT"/mev
   docker compose -f docker-compose.prod.yml up -d prometheus grafana
   

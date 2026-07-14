@@ -52,11 +52,12 @@ docker compose -f docker-compose.prod.yml up -d --build substrate-node mev-engin
 wait_for_container "substrate-node"
 wait_for_container "mev-engine"
 
-# Build and run node and adapters
-docker compose -f docker-compose.prod.yml up -d --build mev-node time-machine-go mesh-adapter
+# Build and run node, adapters and markets sidecar
+docker compose -f docker-compose.prod.yml up -d --build mev-node time-machine-go mesh-adapter markets
 wait_for_container "mev-node"
 wait_for_container "time-machine-go"
 wait_for_container "mesh-adapter"
+wait_for_container "markets"
 
 echo "=== [PQRL9] Starting telemetry and ready flag ==="
 docker compose -f docker-compose.prod.yml up -d prometheus grafana

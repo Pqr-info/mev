@@ -199,6 +199,26 @@ services:
     networks:
       - sos-network
 
+  markets:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.markets
+    container_name: markets
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8085/api/v1/accounts/summary >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    ports:
+      - "8085:8085"
+    volumes:
+      - ./scripts:/app/scripts
+      - ./dashboard:/app/dashboard
+      - ./config:/app/config:ro
+    networks:
+      - sos-network
+
 networks:
   sos-network:
     driver: bridge
