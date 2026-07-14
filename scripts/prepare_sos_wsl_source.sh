@@ -23,6 +23,8 @@ copy_tree() {
       --exclude '__pycache__' \
       --exclude '*.pyc' \
       --exclude '.DS_Store' \
+      --exclude 'target' \
+      --exclude 'bin' \
       "$src/" "$dest/"
   fi
 }
