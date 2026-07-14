@@ -14,13 +14,15 @@ New-Item -ItemType Directory -Path "$TEMP_DEPLOY\mev" | Out-Null
 
 Write-Host "=== Preparing and copying source tree ==="
 # Use robocopy to sync source files quickly excluding build directories
-$exclude = @(".git", ".github", "node_modules", ".venv", "__pycache__", "target", "bin")
+$exclude = @(".git", ".github", "node_modules", ".venv", "__pycache__", "target")
 robocopy "d:\pqr.info\mev" "$TEMP_DEPLOY\mev" /MIR /XD $exclude /R:1 /W:1 | Out-Null
+Remove-Item -Recurse -Force "$TEMP_DEPLOY\mev\bin" -ErrorAction SilentlyContinue
 
 # Copy jetweb-time-machine if exists
 if (Test-Path "d:\pqr.info\jetweb-time-machine") {
     New-Item -ItemType Directory -Path "$TEMP_DEPLOY\jetweb-time-machine" | Out-Null
     robocopy "d:\pqr.info\jetweb-time-machine" "$TEMP_DEPLOY\jetweb-time-machine" /MIR /XD $exclude /R:1 /W:1 | Out-Null
+    Remove-Item -Recurse -Force "$TEMP_DEPLOY\jetweb-time-machine\bin" -ErrorAction SilentlyContinue
 }
 
 Write-Host "=== [PQRL0] Preparing Server Directory Topology ==="
