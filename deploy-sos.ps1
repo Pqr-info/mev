@@ -8,7 +8,7 @@ $TEMP_DEPLOY = "$env:TEMP\pqr-deploy"
 
 # Clean local temporary deploy directory
 if (Test-Path $TEMP_DEPLOY) {
-    Remove-Item -Recururse -Force $TEMP_DEPLOY
+    Remove-Item -Recurse -Force $TEMP_DEPLOY
 }
 New-Item -ItemType Directory -Path "$TEMP_DEPLOY\mev" | Out-Null
 
