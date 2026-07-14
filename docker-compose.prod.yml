@@ -8,11 +8,10 @@ services:
     container_name: mev-engine
     restart: always
     healthcheck:
-      test: ["CMD-SHELL", "pgrep mev-engine >/dev/null 2>&1 || exit 1"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD-SHELL", "grep -q mev-engine /proc/1/comm || exit 1"]
+      interval: 10s
+      timeout: 5s
       retries: 3
-      start_period: 20s
     environment:
       - MEV_CONFIG=/app/config/config.json
       - LOG_LEVEL=info
