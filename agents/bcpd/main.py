@@ -464,7 +464,8 @@ heartbeat_failures = 0
 def heartbeat_tick(state):
     global heartbeat_failures
     try:
-        resp = requests.get("http://localhost:8081/ping", timeout=5)
+        url = GEMINI_AGENT_URL.replace("/interact", "/ping")
+        resp = requests.get(url, timeout=5)
         if resp.status_code == 200:
             state["agents"]["gemini"]["heartbeat_at"] = now_iso()
             if state["agents"]["gemini"]["status"] in ("offline", "degraded"):
