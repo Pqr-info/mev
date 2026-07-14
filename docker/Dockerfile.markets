@@ -11,7 +11,7 @@ COPY dashboard/ /app/dashboard/
 COPY config/ /app/config/
 
 # Install python packages (Flask for Schwab API)
-RUN pip install --no-cache-dir flask requests
+RUN pip install --no-cache-dir flask requests psycopg2-binary
 
 # Expose ports
 EXPOSE 8085
