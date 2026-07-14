@@ -13,7 +13,7 @@ echo "=== Preparing Source tree ==="
 "$SCRIPT_DIR/scripts/prepare_sos_wsl_source.sh" "$SOS_WSL_SOURCE_ROOT"
 
 echo "=== [PQRL0] Preparing Server Directory Topology ==="
-ssh -T -o StrictHostKeyChecking=no root@"$VPS_IP" "mkdir -p /opt/sos/mev /opt/sos/jetweb-time-machine /opt/sos/substrate-node-template /etc/sos /var/sos"
+ssh -n -T -o StrictHostKeyChecking=no root@"$VPS_IP" "mkdir -p /opt/sos/mev /opt/sos/jetweb-time-machine /opt/sos/substrate-node-template /etc/sos /var/sos"
 
 echo "=== [PQRL1] Uploading Codebase Tarballs ==="
 rm -f /tmp/mev.tar.gz /tmp/jetweb-time-machine.tar.gz /tmp/substrate-node-template.tar.gz
@@ -37,4 +37,4 @@ scp -o StrictHostKeyChecking=no "$SOS_WSL_SOURCE_ROOT/runlevels.toml" root@"$VPS
 
 echo "=== [PQRL5] Transferring & running remote deployment ==="
 scp -o StrictHostKeyChecking=no "$SOS_WSL_SOURCE_ROOT/mev/deploy_remote.sh" root@"$VPS_IP":/tmp/deploy_remote.sh
-ssh -T -o StrictHostKeyChecking=no root@"$VPS_IP" "bash /tmp/deploy_remote.sh"
+ssh -n -T -o StrictHostKeyChecking=no root@"$VPS_IP" "bash /tmp/deploy_remote.sh"
