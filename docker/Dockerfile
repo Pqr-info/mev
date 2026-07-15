@@ -7,7 +7,7 @@
 # Run:    docker run --env-file .env mev-engine
 
 # ── Stage 1: Build ───────────────────────────────────────────────────
-FROM rust:1.75-slim-bookworm as builder
+FROM rust:slim-bookworm as builder
 
 WORKDIR /build
 

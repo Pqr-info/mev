@@ -73,6 +73,7 @@ dashmap = "5.5"
 parking_lot = "0.12"
 crossbeam-channel = "0.5"
 num_cpus = "1.16"
+core_affinity = "0.8"
 
 # Metrics
 metrics = "0.22"

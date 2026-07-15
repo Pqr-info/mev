@@ -1,0 +1,20 @@
+FROM python:3.12-alpine
+
+WORKDIR /app
+
+# Install standard dependencies
+RUN apk add --no-cache bash curl gcc musl-dev
+
+# Copy project files
+COPY scripts/ /app/scripts/
+COPY dashboard/ /app/dashboard/
+COPY config/ /app/config/
+
+# Install python packages (Flask for Schwab API)
+RUN pip install --no-cache-dir flask requests psycopg2-binary
+
+# Expose ports
+EXPOSE 8085
+
+# Start Schwab paper API server directly
+CMD ["python", "scripts/schwab_paper_api.py"]

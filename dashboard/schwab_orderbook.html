@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schwab Paper Terminal & Order Book</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
+        :root {
+            --bg-deep: #06090e;
+            --bg-panel: #0b111a;
+            --bg-surface: #121b26;
+            --bg-interactive: #1a2635;
+            --border: #1d2c3f;
+            --border-glow: #3b82f633;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #475569;
+            --green: #10b981;
+            --green-glow: #10b98122;
+            --red: #ef4444;
+            --red-glow: #ef444422;
+            --blue: #3b82f6;
+            --blue-glow: #3b82f622;
+            --orange: #f59e0b;
+            --orange-glow: #f59e0b22;
+            --purple: #8b5cf6;
+            --font-mono: 'JetBrains Mono', monospace;
+            --font-sans: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Ambient background glow */
+        .ambient-glow {
+            display: none;
+            position: fixed;
+            width: 800px;
+            height: 800px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+            filter: blur(150px);
+            opacity: 0;
+        }
+        .ambient-glow.blue {
+            background: var(--blue);
+            top: -200px;
+            right: -100px;
+        }
+        .ambient-glow.green {
+            background: var(--green);
+            bottom: -200px;
+            left: -100px;
+        }
+
+        /* Top navigation header */
+        header {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 32px;
+            background: rgba(11, 17, 26, 0.8);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-logo {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--blue), var(--purple));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 16px;
+            color: white;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .brand-name {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .brand-name span {
+            color: var(--blue);
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--green);
+        }
+        .connection-status.offline {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: var(--red);
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse 1.5s infinite;
+        }
+        .connection-status.offline .pulse-dot {
+            background: var(--red);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 0.6; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(0.9); opacity: 0.6; }
+        }
+
+        /* Dashboard Grid Layout */
+        .dashboard-container {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: 320px 1fr 360px;
+            gap: 16px;
+            padding: 20px;
+            flex-grow: 1;
+            max-height: calc(100vh - 69px);
+            overflow: hidden;
+        }
+
+        .grid-col {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* Common panel container */
+        .panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .panel:hover {
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+            border-bottom: 1px solid rgba(29, 44, 63, 0.5);
+            padding-bottom: 8px;
+            flex-shrink: 0;
+        }
+
+        .panel-title {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-body {
+            flex-grow: 1;
+            overflow-y: auto;
+            min-height: 0;
+        }
+
+        /* Balance & Account Info */
+        .account-worth {
+            font-size: 28px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            color: var(--text-primary);
+            margin: 6px 0;
+        }
+
+        .account-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .meta-box {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .meta-label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .meta-val {
+            font-size: 14px;
+            font-weight: 600;
+            font-family: var(--font-mono);
+        }
+
+        /* Interactive list of positions */
+        .positions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 6px;
+        }
+
+        .position-item {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .position-item:hover {
+            border-color: var(--blue);
+            transform: translateX(4px);
+        }
+        .position-item.active {
+            border-color: var(--blue);
+            background: rgba(59, 130, 246, 0.08);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+        }
+
+        .pos-ticker {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .pos-qty {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .pos-right {
+            text-align: right;
+        }
+        .pos-val {
+            font-size: 13px;
+            font-weight: 600;
+            font-family: var(--font-mono);
+        }
+        .pos-pl {
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 2px;
+            font-family: var(--font-mono);
+        }
+        .pl-profit { color: var(--green); }
+        .pl-loss { color: var(--red); }
+
+        /* Order Book HUD Grid */
+        .orderbook-panel {
+            flex-grow: 1;
+            min-height: 0;
+        }
+
+        .stock-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .ticker-input {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 12px;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            width: 100px;
+            outline: none;
+        }
+        .ticker-input:focus {
+            border-color: var(--blue);
+        }
+
+        .btn-set {
+            background: var(--blue);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn-set:hover {
+            opacity: 0.9;
+        }
+
+        /* Order Book Table Structure */
+        .orderbook-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        .orderbook-table th {
+            text-align: left;
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 10px;
+            text-transform: uppercase;
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .orderbook-row {
+            transition: background 0.15s;
+        }
+        .orderbook-row:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .orderbook-row td {
+            padding: 4px 8px;
+            vertical-align: middle;
+            position: relative;
+        }
+
+        /* Level 2 bar indicators */
+        .depth-bar {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            right: 0;
+            z-index: 0;
+            pointer-events: none;
+            opacity: 0.15;
+            transition: width 0.3s ease;
+        }
+        .depth-bar.ask { background-color: var(--red); }
+        .depth-bar.bid { background-color: var(--green); }
+
+        .ob-cell-price { font-weight: 600; z-index: 1; position: relative; }
+        .ob-cell-size { text-align: right; z-index: 1; position: relative; color: var(--text-primary); }
+        .ob-cell-total { text-align: right; z-index: 1; position: relative; color: var(--text-secondary); }
+
+        .price-ask { color: var(--red); }
+        .price-bid { color: var(--green); }
+
+        .spread-row {
+            background: rgba(29, 44, 63, 0.2);
+            border-top: 1px dashed var(--border);
+            border-bottom: 1px dashed var(--border);
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+        .spread-row td {
+            padding: 6px 8px;
+        }
+
+        /* Order placement panel */
+        .order-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .input-group label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .form-select, .form-input {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: var(--text-primary);
+            outline: none;
+            font-size: 13px;
+        }
+        .form-select:focus, .form-input:focus {
+            border-color: var(--blue);
+        }
+
+        .tab-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            background: var(--bg-surface);
+            border-radius: 6px;
+            padding: 3px;
+            border: 1px solid var(--border);
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-weight: 600;
+            padding: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .tab-btn.active.buy {
+            background: var(--green);
+            color: white;
+        }
+        .tab-btn.active.sell {
+            background: var(--red);
+            color: white;
+        }
+
+        .btn-order-submit {
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            margin-top: 6px;
+        }
+        .btn-order-submit.buy {
+            background: var(--green);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+        }
+        .btn-order-submit.sell {
+            background: var(--red);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+        }
+        .btn-order-submit:hover {
+            filter: brightness(1.1);
+        }
+
+        /* Order list items */
+        .orders-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .order-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .order-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .order-card-tag {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+        .order-card-tag.buy { background: rgba(16, 185, 129, 0.1); color: var(--green); }
+        .order-card-tag.sell { background: rgba(239, 68, 68, 0.1); color: var(--red); }
+
+        .order-card-cancel {
+            font-size: 10px;
+            font-weight: 600;
+            color: var(--red);
+            cursor: pointer;
+            background: transparent;
+            border: none;
+        }
+        .order-card-cancel:hover {
+            text-decoration: underline;
+        }
+
+        .order-card-details {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .order-card-details span {
+            font-family: var(--font-mono);
+            color: var(--text-primary);
+        }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-glow blue"></div>
+    <div class="ambient-glow green"></div>
+
+    <!-- Header bar -->
+    <header>
+        <div class="brand">
+            <div class="brand-logo">S</div>
+            <div class="brand-name">Schwab <span>Paper API HUD</span></div>
+            <span class="badge badge-version">v1.2</span>
+        </div>
+        <div class="connection-status" id="connStatus">
+            <div class="pulse-dot"></div>
+            <span id="connText">Connected to Port 8085</span>
+        </div>
+    </header>
+
+    <!-- Main grid dashboard -->
+    <div class="dashboard-container">
+
+        <!-- Column 1: Account Portfolio -->
+        <div class="grid-col">
+            <div class="panel" style="flex-shrink: 0;">
+                <div class="panel-header">
+                    <div class="panel-title">Net Valuation</div>
+                </div>
+                <div class="panel-body">
+                    <div class="meta-label">Total Net Worth</div>
+                    <div class="account-worth" id="netWorth">$114,995.70</div>
+                    
+                    <div class="account-meta">
+                        <div class="meta-box">
+                            <div class="meta-label">Cash</div>
+                            <div class="meta-val" id="cashBalance">$114,995.70</div>
+                        </div>
+                        <div class="meta-box">
+                            <div class="meta-label">Equity</div>
+                            <div class="meta-val" id="equityValue">$0.00</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel" style="flex-grow: 1;">
+                <div class="panel-header">
+                    <div class="panel-title">Asset Holdings</div>
+                </div>
+                <div class="panel-body">
+                    <div class="positions-list" id="positionsList">
+                        <!-- Positions populated via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Column 2: Selected Asset Order Book & Depth Chart -->
+        <div class="grid-col">
+            <div class="panel orderbook-panel">
+                <div class="panel-header">
+                    <div class="panel-title">Level 2 Depth</div>
+                    <div class="stock-selector">
+                        <input type="text" class="ticker-input" id="targetTicker" value="TXN">
+                        <button class="btn-set" onclick="setTargetAsset()">Select</button>
+                    </div>
+                </div>
+                <div class="panel-body">
+                    <table class="orderbook-table">
+                        <thead>
+                            <tr>
+                                <th>Price ($)</th>
+                                <th style="text-align: right;">Size (Qty)</th>
+                                <th style="text-align: right;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="asksBody">
+                            <!-- Asks populated via JS -->
+                        </tbody>
+                        <tbody>
+                            <tr class="spread-row">
+                                <td colspan="2" id="spreadLabel">Spread: $0.15 (0.05%)</td>
+                                <td style="text-align: right;" id="midPriceLabel">Mid: $311.50</td>
+                            </tr>
+                        </tbody>
+                        <tbody id="bidsBody">
+                            <!-- Bids populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Column 3: Trading Desk & Pending Orders -->
+        <div class="grid-col">
+            <div class="panel" style="flex-shrink: 0;">
+                <div class="panel-header">
+                    <div class="panel-title">Place Order</div>
+                </div>
+                <div class="panel-body">
+                    <div class="order-form">
+                        <div class="tab-container">
+                            <button class="tab-btn active buy" id="tabBuy" onclick="setSide('BUY')">BUY</button>
+                            <button class="tab-btn sell" id="tabSell" onclick="setSide('SELL')">SELL</button>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Order Type</label>
+                            <select class="form-select" id="orderType" onchange="toggleLimitPriceField()">
+                                <option value="MARKET">Market</option>
+                                <option value="LIMIT">Limit</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group" id="limitPriceGroup" style="display: none;">
+                            <label>Limit Price ($)</label>
+                            <input type="number" step="0.01" class="form-input" id="orderPrice" placeholder="0.00">
+                        </div>
+
+                        <div class="input-group">
+                            <label>Quantity</label>
+                            <input type="number" step="1" class="form-input" id="orderQty" value="10">
+                        </div>
+
+                        <button class="btn-order-submit buy" id="btnSubmit" onclick="submitOrder()">Submit BUY Order</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel" style="flex-grow: 1;">
+                <div class="panel-header">
+                    <div class="panel-title">Pending Orders</div>
+                </div>
+                <div class="panel-body">
+                    <div class="orders-container" id="pendingOrders">
+                        <!-- Pending orders populated via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const API_BASE = "http://localhost:8085/api/v1";
+        let activeSide = "BUY";
+        let selectedTicker = "TXN";
+        let marketPrice = 311.46;
+
+        // Start polling loops
+        setInterval(fetchPortfolioData, 1000);
+        setInterval(fetchPendingOrders, 2000);
+        setInterval(updateOrderBook, 400);
+
+        // Fetch account balances & positions
+        async function fetchPortfolioData() {
+            try {
+                // Summary
+                const summaryRes = await fetch(`${API_BASE}/accounts/summary`);
+                const summary = await summaryRes.json();
+                
+                document.getElementById("netWorth").innerText = `$${summary.account_net_worth.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                document.getElementById("cashBalance").innerText = `$${summary.cash_balance.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                document.getElementById("equityValue").innerText = `$${summary.total_equity_value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+                // Connection status green
+                const conn = document.getElementById("connStatus");
+                conn.className = "connection-status";
+                document.getElementById("connText").innerText = "Connected to Port 8085";
+
+                // Positions
+                const posRes = await fetch(`${API_BASE}/accounts/positions`);
+                const positions = await posRes.json();
+                
+                const list = document.getElementById("positionsList");
+                list.innerHTML = "";
+
+                // Find price of selected asset
+                const activePos = positions.find(p => p.symbol === selectedTicker);
+                if (activePos) {
+                    marketPrice = activePos.current_price;
+                }
+
+                positions.forEach(p => {
+                    const plClass = p.unrealized_pl >= 0 ? "pl-profit" : "pl-loss";
+                    const plSign = p.unrealized_pl >= 0 ? "+" : "";
+                    
+                    const item = document.createElement("div");
+                    item.className = `position-item ${p.symbol === selectedTicker ? 'active' : ''}`;
+                    item.onclick = () => {
+                        selectedTicker = p.symbol;
+                        document.getElementById("targetTicker").value = p.symbol;
+                        marketPrice = p.current_price;
+                        updateOrderBook();
+                    };
+
+                    item.innerHTML = `
+                        <div>
+                            <div class="pos-ticker">${p.symbol}</div>
+                            <div class="pos-qty">${p.quantity} shares @ $${p.cost_basis / p.quantity ? (p.cost_basis / p.quantity).toFixed(2) : 0}</div>
+                        </div>
+                        <div class="pos-right">
+                            <div class="pos-val">$${p.market_value.toFixed(2)}</div>
+                            <div class="pos-pl ${plClass}">${plSign}$${p.unrealized_pl.toFixed(2)} (${plSign}${p.unrealized_pl_percent}%)</div>
+                        </div>
+                    `;
+                    list.appendChild(item);
+                });
+            } catch (err) {
+                // Connection offline red
+                const conn = document.getElementById("connStatus");
+                conn.className = "connection-status offline";
+                document.getElementById("connText").innerText = "Offline (Port 8085 disconnected)";
+            }
+        }
+
+        // Fetch active pending orders
+        async function fetchPendingOrders() {
+            try {
+                const res = await fetch(`${API_BASE}/orders`);
+                const orders = await res.json();
+                const container = document.getElementById("pendingOrders");
+                container.innerHTML = "";
+
+                if (orders.length === 0) {
+                    container.innerHTML = `<div style="font-size: 11px; color: var(--text-secondary); text-align: center; margin-top: 20px;">No pending orders.</div>`;
+                    return;
+                }
+
+                orders.forEach(o => {
+                    const card = document.createElement("div");
+                    card.className = "order-card";
+                    const isBuy = o.action === "BUY";
+
+                    card.innerHTML = `
+                        <div class="order-card-header">
+                            <span class="order-card-tag ${isBuy ? 'buy' : 'sell'}">${o.action} ${o.symbol}</span>
+                            <button class="order-card-cancel" onclick="cancelOrder('${o.order_id}')">Cancel</button>
+                        </div>
+                        <div class="order-card-details">
+                            Qty: <span>${o.qty}</span> Price: <span>$${o.price.toFixed(2)}</span>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (err) {}
+        }
+
+        // Cancel order via API
+        async function cancelOrder(orderId) {
+            try {
+                const res = await fetch(`${API_BASE}/orders/cancel`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ order_id: orderId })
+                });
+                if (res.ok) fetchPendingOrders();
+            } catch (err) {}
+        }
+
+        // Set target asset for order book
+        function setTargetAsset() {
+            selectedTicker = document.getElementById("targetTicker").value.toUpperCase();
+            // Default pricing fallbacks to seed starting estimate
+            const basePrices = {"TXN": 311.46, "AVGO": 399.97, "THO": 72.86, "OMCL": 44.92, "TSM": 434.11};
+            marketPrice = basePrices[selectedTicker] || 100.0;
+            updateOrderBook();
+        }
+
+        // Set side (BUY/SELL)
+        function setSide(side) {
+            activeSide = side;
+            const tabBuy = document.getElementById("tabBuy");
+            const tabSell = document.getElementById("tabSell");
+            const btnSubmit = document.getElementById("btnSubmit");
+
+            if (side === "BUY") {
+                tabBuy.className = "tab-btn active buy";
+                tabSell.className = "tab-btn";
+                btnSubmit.className = "btn-order-submit buy";
+                btnSubmit.innerText = `Submit BUY Order`;
+            } else {
+                tabBuy.className = "tab-btn";
+                tabSell.className = "tab-btn active sell";
+                btnSubmit.className = "btn-order-submit sell";
+                btnSubmit.innerText = `Submit SELL Order`;
+            }
+        }
+
+        // Submit order via API
+        async function submitOrder() {
+            const qty = parseFloat(document.getElementById("orderQty").value);
+            const orderType = document.getElementById("orderType").value;
+            const price = parseFloat(document.getElementById("orderPrice").value) || 0.0;
+
+            const payload = {
+                symbol: selectedTicker,
+                qty: qty,
+                action: activeSide,
+                type: orderType
+            };
+
+            if (orderType === "LIMIT") {
+                payload.price = price;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/orders/place`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                alert(data.message || data.error);
+                fetchPortfolioData();
+                fetchPendingOrders();
+            } catch (err) {
+                alert("Failed to submit order. Check API connection.");
+            }
+        }
+
+        function toggleLimitPriceField() {
+            const type = document.getElementById("orderType").value;
+            document.getElementById("limitPriceGroup").style.display = type === "LIMIT" ? "flex" : "none";
+        }
+
+        // Generate synthetic Level 2 order book around current market price
+        function updateOrderBook() {
+            const spread = marketPrice * 0.0005; // 0.05% spread
+            const midPrice = marketPrice;
+            const spreadAmount = Math.max(spread, 0.01);
+            
+            const bestBid = midPrice - (spreadAmount / 2);
+            const bestAsk = midPrice + (spreadAmount / 2);
+
+            document.getElementById("midPriceLabel").innerText = `Mid: $${midPrice.toFixed(2)}`;
+            document.getElementById("spreadLabel").innerText = `Spread: $${spreadAmount.toFixed(2)} (${((spreadAmount/midPrice)*100).toFixed(3)}%)`;
+
+            // Asks (Sells) - Sorted High to Low (stacked top to bottom)
+            const asksBody = document.getElementById("asksBody");
+            asksBody.innerHTML = "";
+            let askTotal = 0;
+            const asksRows = [];
+
+            for (let i = 4; i >= 0; i--) {
+                const price = bestAsk + (i * 0.05) + (Math.random() * 0.01);
+                const size = Math.floor(Math.random() * 80) + 10;
+                askTotal += size;
+                asksRows.push({ price, size, total: askTotal });
+            }
+
+            asksRows.forEach(row => {
+                const tr = document.createElement("tr");
+                tr.className = "orderbook-row";
+                const widthPercent = Math.min((row.size / 100) * 100, 100);
+                
+                tr.innerHTML = `
+                    <td class="ob-cell-price price-ask">$${row.price.toFixed(2)}</td>
+                    <td class="ob-cell-size">${row.size}</td>
+                    <td class="ob-cell-total">${row.total}</td>
+                    <div class="depth-bar ask" style="width: ${widthPercent}%;"></div>
+                `;
+                asksBody.appendChild(tr);
+            });
+
+            // Bids (Buys) - Sorted High to Low
+            const bidsBody = document.getElementById("bidsBody");
+            bidsBody.innerHTML = "";
+            let bidTotal = 0;
+
+            for (let i = 0; i < 5; i++) {
+                const price = bestBid - (i * 0.05) - (Math.random() * 0.01);
+                const size = Math.floor(Math.random() * 85) + 15;
+                bidTotal += size;
+
+                const tr = document.createElement("tr");
+                tr.className = "orderbook-row";
+                const widthPercent = Math.min((size / 100) * 100, 100);
+
+                tr.innerHTML = `
+                    <td class="ob-cell-price price-bid">$${price.toFixed(2)}</td>
+                    <td class="ob-cell-size">${size}</td>
+                    <td class="ob-cell-total">${bidTotal}</td>
+                    <div class="depth-bar bid" style="width: ${widthPercent}%;"></div>
+                `;
+                bidsBody.appendChild(tr);
+            }
+        }
+    </script>
+</body>
+</html>

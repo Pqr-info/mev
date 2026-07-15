@@ -1,0 +1,36 @@
+{
+  "quorum_policy": {
+    "organ_id": "mev",
+    "required_confirmations": 2,
+    "max_slippage_tolerance": 0.01,
+    "max_gas_price_gwei": 150.0,
+    "active_execution_allowed": false,
+    "training_mode": "shadow",
+    "risk_mitigation": {
+      "max_exposure_per_trade_wei": 50000000000000000000,
+      "max_consecutive_failures": 3,
+      "degradation_latency_ms": 25.0
+    }
+  },
+  "telemetry_schema": {
+    "ingress_streams": [
+      {
+        "stream_name": "mempool.firehose",
+        "data_type": "transaction_candidate",
+        "format": "JSON-RPC"
+      },
+      {
+        "stream_name": "dex.state",
+        "data_type": "pool_delta",
+        "format": "binary-protobuf"
+      }
+    ],
+    "egress_streams": [
+      {
+        "stream_name": "bundle.flashbots",
+        "data_type": "execution_payload",
+        "format": "RLP"
+      }
+    ]
+  }
+}

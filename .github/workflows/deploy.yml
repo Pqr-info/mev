@@ -1,0 +1,53 @@
+name: Spark-OS (SOS) Continuous Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  # Runlevel A: Deploy ingress routers to Cloudflare
+  deploy-cloudflare:
+    runs-on: ubuntu-latest
+    name: "Runlevel A: Deploy Cloudflare Workers Ingress"
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy Worker Router
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --name sos-router wrangler.toml
+
+  # Runlevel B: Deploy Core containers to Hetzner Nuremberg
+  deploy-hetzner:
+    runs-on: ubuntu-latest
+    name: "Runlevel B: Deploy SOS Container Stack"
+    needs: deploy-cloudflare
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 46.224.219.174 >> ~/.ssh/known_hosts
+
+      - name: Execute Remote Deployment (deploy.sh)
+        env:
+          HETZNER_API_KEY: ${{ secrets.HETZNER_API_KEY }}
+        run: |
+          # Compress code ignoring heavy folders
+          tar -czf mev.tar.gz . --exclude="node_modules" --exclude="target" --exclude=".git" --exclude="logs"
+          
+          # Copy to VPS /tmp
+          scp -i ~/.ssh/id_rsa mev.tar.gz root@46.224.219.174:/tmp/mev.tar.gz
+          scp -i ~/.ssh/id_rsa deploy_remote.sh root@46.224.219.174:/tmp/deploy.sh
+          scp -i ~/.ssh/id_rsa runlevels.toml root@46.224.219.174:/tmp/runlevels.toml
+          
+          # Trigger remote runlevel deploy
+          ssh -i ~/.ssh/id_rsa root@46.224.219.174 "chmod +x /tmp/deploy.sh && HETZNER_API_KEY='$HETZNER_API_KEY' /tmp/deploy.sh"

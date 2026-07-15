@@ -1,0 +1,9 @@
+[organ]
+name = "MEV Engine"
+id = "mev"
+version = "1.0.0"
+role = "high-frequency arbitrage + mempool analysis"
+
+[interfaces]
+ingress = ["mempool.firehose", "dex.state", "arb.node"]
+egress = ["bundle.flashbots", "arb.sequencer", "swarm.strategy"]

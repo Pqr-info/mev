@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemma sinkorswim [Paper Terminal]</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+        :root {
+            --tos-bg-dark: #0f1011;
+            --tos-bg-medium: #17181c;
+            --tos-bg-light: #202228;
+            --tos-bg-active: #2b2e36;
+            --tos-border: #2d3037;
+            --tos-text-primary: #d5d9e0;
+            --tos-text-secondary: #8e95a5;
+            --tos-yellow: #f1c40f;
+            --tos-orange: #e67e22;
+            --tos-green: #2ecc71;
+            --tos-red: #e74c3c;
+            --tos-cyan: #1abc9c;
+            --font-mono: 'Roboto Mono', monospace;
+            --font-sans: 'Inter', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--tos-bg-dark);
+            color: var(--tos-text-primary);
+            font-family: var(--font-sans);
+            font-size: 12px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Top ToS HUD Bar */
+        .tos-header {
+            background: var(--tos-bg-medium);
+            border-bottom: 2px solid var(--tos-border);
+            padding: 6px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-family: var(--font-mono);
+            flex-shrink: 0;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .brand {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--tos-yellow);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .brand span {
+            color: var(--tos-text-primary);
+            font-weight: 400;
+        }
+
+        .account-stats {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            border-left: 1px solid var(--tos-border);
+            padding-left: 16px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .stat-label {
+            font-size: 9px;
+            color: var(--tos-text-secondary);
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .stat-value.profit { color: var(--tos-green); }
+        .stat-value.loss { color: var(--tos-red); }
+
+        /* Main Workspace layout */
+        .tos-container {
+            display: grid;
+            grid-template-columns: 240px 1fr 340px;
+            flex-grow: 1;
+            overflow: hidden;
+            background: var(--tos-bg-dark);
+        }
+
+        /* Left Side Panel (Watchlists / Quick Tools) */
+        .tos-sidebar {
+            background: var(--tos-bg-medium);
+            border-right: 1px solid var(--tos-border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            border-bottom: 1px solid var(--tos-border);
+            padding: 12px;
+        }
+
+        .section-header {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--tos-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* Center Panel (Charts & Trade chains) */
+        .tos-main {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--tos-border);
+            overflow: hidden;
+        }
+
+        /* Tabs bar */
+        .tos-tabs {
+            background: var(--tos-bg-medium);
+            border-bottom: 1px solid var(--tos-border);
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            flex-shrink: 0;
+        }
+
+        .tab {
+            padding: 8px 16px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--tos-text-secondary);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab:hover {
+            color: var(--tos-text-primary);
+        }
+        .tab.active {
+            color: var(--tos-yellow);
+            border-bottom-color: var(--tos-yellow);
+            background: var(--tos-bg-light);
+        }
+
+        /* Main Content Body */
+        .tos-content {
+            flex-grow: 1;
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-height: 0;
+        }
+
+        /* Simulated Candle Chart */
+        .chart-box {
+            background: var(--tos-bg-medium);
+            border: 1px solid var(--tos-border);
+            border-radius: 6px;
+            padding: 12px;
+            height: 280px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .chart-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .chart-ticker {
+            font-size: 16px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            color: var(--tos-yellow);
+        }
+
+        .chart-candles-container {
+            flex-grow: 1;
+            border-left: 1px solid var(--tos-border);
+            border-bottom: 1px solid var(--tos-border);
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            padding: 20px 10px 0 10px;
+        }
+
+        .candle {
+            width: 14px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .wick {
+            width: 2px;
+            background-color: var(--tos-text-secondary);
+            position: absolute;
+            z-index: 1;
+        }
+
+        .body {
+            width: 100%;
+            border-radius: 2px;
+            z-index: 2;
+        }
+        .candle.up .body { background-color: var(--tos-green); }
+        .candle.down .body { background-color: var(--tos-red); }
+
+        /* Option Chain Grid */
+        .option-chain-box {
+            background: var(--tos-bg-medium);
+            border: 1px solid var(--tos-border);
+            border-radius: 6px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chain-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            text-align: center;
+        }
+
+        .chain-table th {
+            color: var(--tos-text-secondary);
+            font-weight: 600;
+            font-size: 10px;
+            text-transform: uppercase;
+            padding: 6px;
+            border-bottom: 1px solid var(--tos-border);
+            background: var(--tos-bg-light);
+        }
+
+        .chain-table td {
+            padding: 6px;
+            border-bottom: 1px solid rgba(45, 48, 55, 0.4);
+        }
+
+        .strike-cell {
+            background: var(--tos-bg-light);
+            font-weight: 700;
+            color: var(--tos-yellow);
+        }
+
+        /* Right Panel: Trading Desk */
+        .tos-trading-desk {
+            background: var(--tos-bg-medium);
+            border-left: 1px solid var(--tos-border);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+        }
+
+        .panel-heading {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--tos-text-secondary);
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--tos-border);
+            padding-bottom: 6px;
+        }
+
+        /* Watchlist list items */
+        .watchlist-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-family: var(--font-mono);
+            cursor: pointer;
+        }
+        .watchlist-item:hover {
+            color: var(--tos-yellow);
+        }
+
+        .wl-price-up { color: var(--tos-green); }
+        .wl-price-down { color: var(--tos-red); }
+
+        /* Order Entry Form */
+        .order-panel-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .form-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-row label {
+            font-size: 10px;
+            color: var(--tos-text-secondary);
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .tos-input, .tos-select {
+            background: var(--tos-bg-light);
+            border: 1px solid var(--tos-border);
+            border-radius: 4px;
+            padding: 8px 12px;
+            color: var(--tos-text-primary);
+            font-size: 12px;
+            outline: none;
+        }
+        .tos-input:focus, .tos-select:focus {
+            border-color: var(--tos-yellow);
+        }
+
+        .btn-action-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .btn-tos {
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            font-weight: 700;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 11px;
+            color: white;
+            transition: opacity 0.2s;
+        }
+        .btn-tos.buy { background-color: var(--tos-green); }
+        .btn-tos.sell { background-color: var(--tos-red); }
+        .btn-tos:hover { opacity: 0.9; }
+
+        /* Position statement */
+        .position-statement-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            text-align: left;
+        }
+
+        .position-statement-table th {
+            color: var(--tos-text-secondary);
+            font-weight: 600;
+            padding: 6px 8px;
+            border-bottom: 1px solid var(--tos-border);
+            background: var(--tos-bg-light);
+        }
+
+        .position-statement-table td {
+            padding: 8px;
+            border-bottom: 1px solid rgba(45, 48, 55, 0.4);
+            font-family: var(--font-mono);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Accounts summary bar -->
+    <div class="tos-header">
+        <div class="header-left">
+            <div class="brand">Gemma <span>sinkorswim</span></div>
+            <div class="account-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Net Liq</span>
+                    <span class="stat-value" id="netLiqValue">$114,995.70</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Day Gain</span>
+                    <span class="stat-value profit" id="dayGainValue">+$432.50 (+0.38%)</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Cash & Sweep</span>
+                    <span class="stat-value" id="cashSweepValue">$114,995.70</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Options BP</span>
+                    <span class="stat-value" id="optionsBP">$114,995.70</span>
+                </div>
+            </div>
+        </div>
+        <div style="font-size: 10px; color: var(--tos-text-secondary);">
+            DATA: REAL-TIME (PAPER SIMULATOR)
+        </div>
+    </div>
+
+    <!-- main workspace container -->
+    <div class="tos-container">
+
+        <!-- Sidebar panel -->
+        <div class="tos-sidebar">
+            <div class="sidebar-section">
+                <div class="section-header">
+                    <span>Watchlist</span>
+                </div>
+                <div class="watchlist-item" onclick="setTicker('TXN', 311.46)">
+                    <span>TXN</span>
+                    <span class="wl-price-up">$311.46 (+0.12%)</span>
+                </div>
+                <div class="watchlist-item" onclick="setTicker('AVGO', 399.97)">
+                    <span>AVGO</span>
+                    <span class="wl-price-down">$399.97 (-0.45%)</span>
+                </div>
+                <div class="watchlist-item" onclick="setTicker('TSM', 434.11)">
+                    <span>TSM</span>
+                    <span class="wl-price-up">$434.11 (+1.23%)</span>
+                </div>
+                <div class="watchlist-item" onclick="setTicker('THO', 72.86)">
+                    <span>THO</span>
+                    <span class="wl-price-down">$72.86 (-0.08%)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Charting / Trading tab space -->
+        <div class="tos-main">
+            <div class="tos-tabs">
+                <div class="tab active">Charts</div>
+                <div class="tab">Mempool Monitor</div>
+                <div class="tab">Positions</div>
+            </div>
+
+            <div class="tos-content">
+                <!-- Candlestick chart box -->
+                <div class="chart-box">
+                    <div class="chart-header">
+                        <div class="chart-ticker" id="chartTickerLabel">TXN [D1]</div>
+                        <div style="color: var(--tos-text-secondary); font-size: 10px;">MA(20): 308.20</div>
+                    </div>
+                    <div class="chart-candles-container" id="candlesContainer">
+                        <!-- Candles rendered via JS -->
+                    </div>
+                </div>
+
+                <!-- Option Chain box -->
+                <div class="option-chain-box">
+                    <div class="panel-heading" style="margin-bottom: 10px;">Option Chain (17 JUL 26)</div>
+                    <table class="chain-table">
+                        <thead>
+                            <tr>
+                                <th>Call Bid</th>
+                                <th>Call Ask</th>
+                                <th style="background: var(--tos-bg-light); color: var(--tos-yellow);">Strike</th>
+                                <th>Put Bid</th>
+                                <th>Put Ask</th>
+                            </tr>
+                        </thead>
+                        <tbody id="optionsChainBody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Positions Statement & Fast Order Entry -->
+        <div class="tos-trading-desk">
+            <div class="panel-heading">Order Entry</div>
+            <div class="order-panel-form">
+                <div class="form-row">
+                    <label>Ticker</label>
+                    <input type="text" class="tos-input" id="orderSymbol" value="TXN" style="text-transform: uppercase;">
+                </div>
+                <div class="form-row">
+                    <label>Quantity</label>
+                    <input type="number" class="tos-input" id="orderQty" value="10">
+                </div>
+                <div class="form-row">
+                    <label>Order Type</label>
+                    <select class="tos-select" id="orderType">
+                        <option value="MARKET">Market</option>
+                        <option value="LIMIT">Limit</option>
+                    </select>
+                </div>
+                <div class="btn-action-row">
+                    <button class="btn-tos buy" onclick="submitOrder('BUY')">Buy Market</button>
+                    <button class="btn-tos sell" onclick="submitOrder('SELL')">Sell Market</button>
+                </div>
+            </div>
+
+            <div class="panel-heading" style="margin-top: 10px;">Active Holdings</div>
+            <div style="overflow-x: auto; flex-grow: 1;">
+                <table class="position-statement-table">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Qty</th>
+                            <th>Cost</th>
+                            <th>P&L</th>
+                        </tr>
+                    </thead>
+                    <tbody id="holdingsTableBody">
+                        <!-- Populated via API polling -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const API_BASE = "http://localhost:8085/api/v1";
+        let activeSymbol = "TXN";
+        let basePrice = 311.46;
+
+        // Auto-refresh layout
+        setInterval(fetchAccountAndPositions, 1000);
+        setInterval(generateMockChart, 1000);
+
+        function setTicker(symbol, price) {
+            activeSymbol = symbol;
+            basePrice = price;
+            document.getElementById("chartTickerLabel").innerText = `${symbol} [D1]`;
+            document.getElementById("orderSymbol").value = symbol;
+            generateMockChart();
+            renderOptionChain();
+        }
+
+        async function fetchAccountAndPositions() {
+            try {
+                // Summary
+                const summaryRes = await fetch(`${API_BASE}/accounts/summary`);
+                const summary = await summaryRes.json();
+                document.getElementById("netLiqValue").innerText = `$${summary.account_net_worth.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+                document.getElementById("cashSweepValue").innerText = `$${summary.cash_balance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+                document.getElementById("optionsBP").innerText = `$${summary.cash_balance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+
+                // Day Gain representation
+                const changePct = summary.day_change_percent || 0.38;
+                const changeVal = changePct * summary.account_net_worth * 0.01;
+                const plSign = changeVal >= 0 ? "+" : "";
+                const plClass = changeVal >= 0 ? "profit" : "loss";
+                
+                const dayGain = document.getElementById("dayGainValue");
+                dayGain.innerText = `${plSign}$${Math.abs(changeVal).toFixed(2)} (${plSign}${changePct.toFixed(2)}%)`;
+                dayGain.className = `stat-value ${plClass}`;
+
+                // Positions
+                const posRes = await fetch(`${API_BASE}/accounts/positions`);
+                const positions = await posRes.json();
+                const tbody = document.getElementById("holdingsTableBody");
+                tbody.innerHTML = "";
+
+                positions.forEach(p => {
+                    const tr = document.createElement("tr");
+                    const plClass = p.unrealized_pl >= 0 ? "wl-price-up" : "wl-price-down";
+                    const plSign = p.unrealized_pl >= 0 ? "+" : "";
+
+                    tr.innerHTML = `
+                        <td style="font-weight: 700; color: var(--tos-yellow);">${p.symbol}</td>
+                        <td>${p.quantity}</td>
+                        <td>$${(p.cost_basis / p.quantity).toFixed(2)}</td>
+                        <td class="${plClass}">${plSign}$${p.unrealized_pl.toFixed(2)}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {}
+        }
+
+        function generateMockChart() {
+            const container = document.getElementById("candlesContainer");
+            container.innerHTML = "";
+
+            // Render 12 random candles
+            for (let i = 0; i < 12; i++) {
+                const candleHeight = Math.floor(Math.random() * 120) + 40;
+                const isUp = Math.random() > 0.45;
+                const wickTop = Math.floor(Math.random() * 20);
+                const wickBottom = Math.floor(Math.random() * 20);
+
+                const candleDiv = document.createElement("div");
+                candleDiv.className = `candle ${isUp ? 'up' : 'down'}`;
+                candleDiv.style.height = `${candleHeight}px`;
+
+                const wickDiv = document.createElement("div");
+                wickDiv.className = "wick";
+                wickDiv.style.top = `-${wickTop}px`;
+                wickDiv.style.bottom = `-${wickBottom}px`;
+
+                const bodyDiv = document.createElement("div");
+                bodyDiv.className = "body";
+                bodyDiv.style.height = `${candleHeight - 15}px`;
+
+                candleDiv.appendChild(wickDiv);
+                candleDiv.appendChild(bodyDiv);
+                container.appendChild(candleDiv);
+            }
+        }
+
+        function renderOptionChain() {
+            const tbody = document.getElementById("optionsChainBody");
+            tbody.innerHTML = "";
+
+            const strikes = [
+                Math.round(basePrice - 10),
+                Math.round(basePrice - 5),
+                Math.round(basePrice),
+                Math.round(basePrice + 5),
+                Math.round(basePrice + 10)
+            ];
+
+            strikes.forEach(strike => {
+                const tr = document.createElement("tr");
+                const callBid = (Math.random() * 5 + 0.5).toFixed(2);
+                const callAsk = (parseFloat(callBid) + 0.15).toFixed(2);
+                const putBid = (Math.random() * 5 + 0.5).toFixed(2);
+                const putAsk = (parseFloat(putBid) + 0.15).toFixed(2);
+
+                tr.innerHTML = `
+                    <td style="color: var(--tos-green);">${callBid}</td>
+                    <td style="color: var(--tos-green);">${callAsk}</td>
+                    <td class="strike-cell">${strike}</td>
+                    <td style="color: var(--tos-red);">${putBid}</td>
+                    <td style="color: var(--tos-red);">${putAsk}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function submitOrder(action) {
+            const symbol = document.getElementById("orderSymbol").value.toUpperCase();
+            const qty = parseFloat(document.getElementById("orderQty").value);
+            const orderType = document.getElementById("orderType").value;
+
+            const payload = {
+                symbol: symbol,
+                qty: qty,
+                action: action,
+                type: orderType
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/orders/place`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                alert(data.message || data.error);
+                fetchAccountAndPositions();
+            } catch (err) {
+                alert("Failed to submit order. Check API connection.");
+            }
+        }
+
+        // Initialize chain
+        renderOptionChain();
+    </script>
+</body>
+</html>

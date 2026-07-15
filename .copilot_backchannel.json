@@ -1,0 +1,15 @@
+{
+  "version": "bcspine-1",
+  "epoch": 0,
+  "agents": {
+    "gemini": {
+      "status": "online",
+      "model": "gemini-3.5-flash",
+      "heartbeat_at": null,
+      "last_request": null,
+      "last_response": null,
+      "last_error": null
+    }
+  },
+  "intents": []
+}

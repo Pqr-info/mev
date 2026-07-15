@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package pqrld;
+
+option go_package = "pqr.info/mev/pqrld/proto";
+
+service RunlevelService {
+    rpc GetRunlevelStatus (GetStatusRequest) returns (GetStatusResponse);
+    rpc AdvanceRunlevel (AdvanceRequest) returns (AdvanceResponse);
+    rpc RollbackRunlevel (RollbackRequest) returns (RollbackResponse);
+    rpc TriggerHealing (HealingRequest) returns (HealingResponse);
+    rpc ReloadConfig (ReloadRequest) returns (ReloadResponse);
+}
+
+message GetStatusRequest {}
+
+message GetStatusResponse {
+    string state = 1;         // idle, booting, ready, failed
+    string current_runlevel = 2; // e.g. PQRL7
+    string error_message = 3;
+}
+
+message AdvanceRequest {
+    string runlevel = 1;
+}
+
+message AdvanceResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message RollbackRequest {
+    string runlevel = 1;
+}
+
+message RollbackResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message HealingRequest {
+    string runlevel = 1;
+}
+
+message HealingResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+message ReloadRequest {}
+
+message ReloadResponse {
+    bool success = 1;
+    string message = 2;
+}
