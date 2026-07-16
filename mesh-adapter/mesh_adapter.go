@@ -47,13 +47,39 @@ type Metrics struct {
 }
 
 type RTTicket struct {
-	ID       string                 `json:"id"`
-	Queue    string                 `json:"queue"`
-	Subject  string                 `json:"subject"`
-	Text     string                 `json:"text"`
-	Status   string                 `json:"status"`
-	Created  time.Time              `json:"created"`
-	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	ID           string                 `json:"id"`
+	Queue        string                 `json:"queue"`
+	Subject      string                 `json:"subject"`
+	Text         string                 `json:"text"`
+	Status       string                 `json:"status"`
+	Created      time.Time              `json:"created"`
+	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+	MemoryType   string                 `json:"memory_type,omitempty"`
+	PhysicalTier string                 `json:"physical_tier,omitempty"`
+}
+
+func classifyMemory(createdAt time.Time, now time.Time) (string, string) {
+	ageDays := now.Sub(createdAt).Hours() / 24.0
+
+	if ageDays < 1 {
+		return "ACTIVE", "RAM"
+	}
+	if ageDays < 7 {
+		return "RECENT", "PG"
+	}
+	if ageDays < 30 {
+		return "ARCHIVAL", "SSD"
+	}
+	if ageDays < 365 {
+		return "HERITAGE", "SSD_LT"
+	}
+	if ageDays < 730 {
+		return "FOSSIL", "LCL"
+	}
+	if ageDays < 1825 {
+		return "FOSSILX", "LCL_X"
+	}
+	return "NAS", "NAS"
 }
 
 type Adapter struct {
@@ -105,6 +131,10 @@ func NewAdapter(cfg Config) *Adapter {
 		db.SetMaxIdleConns(2)
 		adapter.db = db
 		log.Info().Msg("Connected to CockroachDB successfully")
+		
+		// Run schema migrations for memory_type and physical_tier
+		_, _ = db.Exec("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS memory_type TEXT")
+		_, _ = db.Exec("ALTER TABLE tickets ADD COLUMN IF NOT EXISTS physical_tier TEXT")
 	} else {
 		log.Warn().Msgf("Failed to open CockroachDB connection pool: %v", err)
 	}
@@ -342,10 +372,12 @@ func (a *Adapter) handleTimeslipGenerator(w http.ResponseWriter, r *http.Request
 		u[6] = (u[6] & 0x0f) | 0x40
 		uuidStr := fmt.Sprintf("%x-%x-%x-%x-%x", u[0:4], u[4:6], u[6:8], u[8:10], u[10:])
 
+		memType, physTier := classifyMemory(time.Now().UTC(), time.Now().UTC())
+
 		_, err := a.db.Exec(`
-			INSERT INTO tickets (ticket_id, layer_id, creator_agent_id, status, iteration, escalation_level, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		`, uuidStr, 1, "github_poller", "new", 1, 0, time.Now().UTC(), time.Now().UTC())
+			INSERT INTO tickets (ticket_id, layer_id, creator_agent_id, status, iteration, escalation_level, created_at, updated_at, memory_type, physical_tier)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		`, uuidStr, 1, "github_poller", "new", 1, 0, time.Now().UTC(), time.Now().UTC(), memType, physTier)
 		if err != nil {
 			log.Warn().Msgf("Failed to insert timeslip into tickets table: %v", err)
 		} else {
