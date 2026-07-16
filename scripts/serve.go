@@ -9,8 +9,8 @@ func main() {
 	fs := http.FileServer(http.Dir("./dashboard"))
 	http.Handle("/", fs)
 
-	fmt.Println("Serving MEV HUD on http://localhost:8080 ...")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	fmt.Println("Serving MEV HUD on http://localhost:2027 ...")
+	if err := http.ListenAndServe(":2027", nil); err != nil {
 		panic(err)
 	}
 }
