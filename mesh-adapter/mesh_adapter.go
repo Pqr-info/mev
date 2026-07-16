@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -99,7 +99,7 @@ func NewAdapter(cfg Config) *Adapter {
 	if dbURL == "" {
 		dbURL = "postgresql://root@46.224.219.174:5196/antigravity?sslmode=disable"
 	}
-	db, err := sql.Open("postgres", dbURL)
+	db, err := sql.Open("pgx", dbURL)
 	if err == nil {
 		db.SetMaxOpenConns(5)
 		db.SetMaxIdleConns(2)
