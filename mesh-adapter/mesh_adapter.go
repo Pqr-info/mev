@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
+	"database/sql"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -13,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	_ "github.com/lib/pq"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -62,6 +65,7 @@ type Adapter struct {
 	lastID       int
 	manifest     map[string]interface{}
 	manifestPath string
+	db           *sql.DB
 }
 
 func NewAdapter(cfg Config) *Adapter {
@@ -89,6 +93,22 @@ func NewAdapter(cfg Config) *Adapter {
 	}
 	adapter.loadManifest()
 	adapter.refreshManifest()
+
+	// Initialize CockroachDB connection
+	dbURL := os.Getenv("COCKROACH_DB_URL")
+	if dbURL == "" {
+		dbURL = "postgresql://root@46.224.219.174:5196/antigravity?sslmode=disable"
+	}
+	db, err := sql.Open("postgres", dbURL)
+	if err == nil {
+		db.SetMaxOpenConns(5)
+		db.SetMaxIdleConns(2)
+		adapter.db = db
+		log.Info().Msg("Connected to CockroachDB successfully")
+	} else {
+		log.Warn().Msgf("Failed to open CockroachDB connection pool: %v", err)
+	}
+
 	return adapter
 }
 
@@ -312,6 +332,34 @@ func (a *Adapter) handleTimeslipGenerator(w http.ResponseWriter, r *http.Request
 		body, _ := json.Marshal(ticket)
 		client := &http.Client{Timeout: 5 * time.Second}
 		_, _ = client.Post(endpoint, "application/json", bytes.NewReader(body))
+	}
+
+	// Real-time CockroachDB insertion
+	if a.db != nil {
+		u := make([]byte, 16)
+		_, _ = rand.Read(u)
+		u[8] = (u[8] & 0x3f) | 0x80
+		u[6] = (u[6] & 0x0f) | 0x40
+		uuidStr := fmt.Sprintf("%x-%x-%x-%x-%x", u[0:4], u[4:6], u[6:8], u[8:10], u[10:])
+
+		_, err := a.db.Exec(`
+			INSERT INTO tickets (ticket_id, layer_id, creator_agent_id, status, iteration, escalation_level, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		`, uuidStr, 1, "github_poller", "new", 1, 0, time.Now().UTC(), time.Now().UTC())
+		if err != nil {
+			log.Warn().Msgf("Failed to insert timeslip into tickets table: %v", err)
+		} else {
+			metaBytes, _ := json.Marshal(payload)
+			_, err = a.db.Exec(`
+				INSERT INTO ticket_content (ticket_id, intent_blob, consensus_score, raw_content, created_at)
+				VALUES ($1, $2, $3, $4, $5)
+			`, uuidStr, metaBytes, 1.0, []byte(text), time.Now().UTC())
+			if err != nil {
+				log.Warn().Msgf("Failed to insert timeslip content: %v", err)
+			} else {
+				log.Info().Msgf("Successfully saved timeslip %s into CockroachDB in real-time.", uuidStr)
+			}
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -854,7 +902,7 @@ func (a *Adapter) handleGovernanceForecast(w http.ResponseWriter, r *http.Reques
 }
 
 func main() {
-	port := flag.String("port", "8080", "Port to run the MCSH adapter on")
+	port := flag.String("port", "2026", "Port to run the MCSH adapter on")
 	flag.Parse()
 
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
