@@ -1,58 +1,73 @@
-<#
-.SYNOPSIS
-    Onboards "MAX", the high-powered mesh inference node (AI Max 395 CPU, 96GB GPU).
-.DESCRIPTION
-    This script configures the MAX node to act as an inference server and links its
-    agent brain to the host's .gemini brain folder.
-#>
-
-param (
-    [Parameter(Mandatory=$true)]
-    [string]$HostIpOrName,
-
-    [Parameter(Mandatory=$false)]
-    [string]$ShareName = "gemini_brain"
+Param(
+    [string]$GeminiBrainDir = "C:\Users\theal\.gemini",
+    [string]$ShareName = "GeminiBrain",
+    [string]$WslDistroName = "JetWebTimeMachineOS",
+    [string]$MeshEndpointPort = "8000"   # vLLM primary
 )
 
-Write-Host "Starting MAX onboarding sequence..." -ForegroundColor Cyan
+Write-Host "=== MAX Onboarding (Host) ==="
 
-# 1. Mount the Shared Brain
-$RemoteShare = "\\$HostIpOrName\$ShareName"
-$LocalBrainPath = "$env:USERPROFILE\.gemini"
-
-Write-Host "Configuring shared brain from $RemoteShare..."
-if (Test-Path $RemoteShare) {
-    if (Test-Path $LocalBrainPath) {
-        Write-Host "Backing up existing local brain..."
-        Rename-Item -Path $LocalBrainPath -NewName ".gemini_backup_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
-    }
-    
-    Write-Host "Creating symlink to shared brain..."
-    cmd /c mklink /D "$LocalBrainPath" "$RemoteShare" | Out-Null
-    Write-Host "Brain synchronization complete." -ForegroundColor Green
-} else {
-    Write-Warning "Could not access remote share $RemoteShare. Make sure the folder is shared on the host."
-    Write-Host "To share on host, run: New-SmbShare -Name 'gemini_brain' -Path 'C:\Users\theal\.gemini' -FullAccess Everyone" -ForegroundColor Yellow
+# 1. Create SMB share for .gemini
+Write-Host "Creating SMB share for $GeminiBrainDir ..."
+if (-Not (Test-Path $GeminiBrainDir)) {
+    Write-Host "ERROR: Brain directory not found: $GeminiBrainDir" -ForegroundColor Red
+    exit 1
 }
 
-# 2. Install Inference Engine (Ollama)
-Write-Host "Checking for Ollama (GPU Inference Engine)..."
-if (-not (Get-Command ollama -ErrorAction SilentlyContinue)) {
-    Write-Host "Installing Ollama..."
-    Invoke-WebRequest -Uri "https://ollama.com/download/OllamaSetup.exe" -OutFile "OllamaSetup.exe"
-    Start-Process -FilePath ".\OllamaSetup.exe" -ArgumentList "/silent" -Wait
-    Remove-Item ".\OllamaSetup.exe"
-    Write-Host "Ollama installed." -ForegroundColor Green
-} else {
-    Write-Host "Ollama is already installed." -ForegroundColor Green
+# Remove existing share if present
+$existingShare = Get-SmbShare -Name $ShareName -ErrorAction SilentlyContinue
+if ($existingShare) {
+    Write-Host "Existing share $ShareName found, removing..."
+    Revoke-SmbShareAccess -Name $ShareName -AccountName "Everyone" -Force -ErrorAction SilentlyContinue
+    Remove-SmbShare -Name $ShareName -Force
 }
 
-# 3. Pull default models for 96GB GPU
-Write-Host "Pulling high-performance models for 96GB GPU..."
-# Llama 3.1 70B requires ~40-50GB, easily fits in 96GB.
-Write-Host "Pulling llama3.1:70b..."
-ollama pull llama3.1:70b
+New-SmbShare -Name $ShareName -Path $GeminiBrainDir -FullAccess "Everyone" | Out-Null
+Write-Host "SMB share $ShareName created for $GeminiBrainDir"
 
-Write-Host "MAX node successfully onboarded!" -ForegroundColor Cyan
-Write-Host "Ensure that Ollama is running and accessible over the network if the host needs to query it."
-Write-Host "To expose Ollama to the network, set OLLAMA_HOST=0.0.0.0 on this machine." -ForegroundColor Yellow
+# 2. Set environment variables (system-level)
+Write-Host "Setting environment variables..."
+[Environment]::SetEnvironmentVariable("GEMINI_BRAIN_DIR", $GeminiBrainDir, "Machine")
+[Environment]::SetEnvironmentVariable("JETWEB_ORGAN_ID", "MAX", "Machine")
+[Environment]::SetEnvironmentVariable("JETWEB_TIME_MACHINE", "ENABLED", "Machine")
+[Environment]::SetEnvironmentVariable("MAX_VLLM_PORT", $MeshEndpointPort, "Machine")
+Write-Host "Environment variables set."
+
+# 3. Verify WSL distro exists
+Write-Host "Checking WSL distro $WslDistroName ..."
+$wslList = wsl.exe --list --verbose
+if ($wslList -notmatch $WslDistroName) {
+    Write-Host "ERROR: WSL distro $WslDistroName not found." -ForegroundColor Red
+    exit 1
+}
+Write-Host "WSL distro $WslDistroName found."
+
+# 4. Copy bootstrap script to WSL and trigger it
+Write-Host "Copying bootstrap script into WSL and fixing line endings..."
+$bootstrapSource = Join-Path $PSScriptRoot "max_inference_bootstrap.sh"
+# Use wslpath to get the WSL-compatible path for the source script
+$wslSource = wsl.exe -d $WslDistroName -- wslpath -a $bootstrapSource
+$bootstrapTarget = "/opt/max/max_inference_bootstrap.sh"
+
+wsl.exe -d $WslDistroName -- bash -lc "mkdir -p /opt/max && tr -d '\r' < `"$wslSource`" > $bootstrapTarget && chmod +x $bootstrapTarget"
+
+Write-Host "Starting WSL bootstrap for vLLM + Qwen3-Coder-30B + Gemma-4-e4b ..."
+wsl.exe -d $WslDistroName -- bash -lc "$bootstrapTarget"
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: WSL bootstrap failed." -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "WSL bootstrap completed."
+
+# 5. Verification: can MAX see transcript.jsonl via SMB/Mount
+Write-Host "Verifying transcript.jsonl visibility..."
+$transcriptPath = Join-Path $GeminiBrainDir "transcript.jsonl"
+if (-Not (Test-Path $transcriptPath)) {
+    Write-Host "WARNING: transcript.jsonl not found at $transcriptPath" -ForegroundColor Yellow
+} else {
+    Write-Host "transcript.jsonl found at $transcriptPath"
+}
+
+Write-Host "=== MAX Onboarding (Host) complete ==="
