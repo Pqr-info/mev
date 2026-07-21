@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"pqr.info/mev/news"
 )
 
 type ReplaySegment struct {
@@ -19,8 +21,9 @@ type ReplaySegment struct {
 }
 
 type TimeMachineReplay struct {
-	tme    *TemporalMemoryEngine
-	router TeleporterRouter
+	tme          *TemporalMemoryEngine
+	router       TeleporterRouter
+	newsProvider news.NewsProvider
 }
 
 func NewTimeMachineReplay(t *TemporalMemoryEngine, router TeleporterRouter) *TimeMachineReplay {
@@ -28,6 +31,10 @@ func NewTimeMachineReplay(t *TemporalMemoryEngine, router TeleporterRouter) *Tim
 		tme:    t,
 		router: router,
 	}
+}
+
+func (tm *TimeMachineReplay) SetNewsProvider(provider news.NewsProvider) {
+	tm.newsProvider = provider
 }
 
 func (tm *TimeMachineReplay) BuildReplay(epoch string) ReplaySegment {

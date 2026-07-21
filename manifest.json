@@ -1,0 +1,37 @@
+{
+  "auth": {
+    "grafana": {
+      "password": "",
+      "username": ""
+    }
+  },
+  "endpoints": {
+    "agentsGemini": "http://localhost:8080/agents/gemini",
+    "consensusProposal": "http://localhost:8080/consensus/proposal",
+    "consensusProposals": "http://localhost:8080/consensus/proposals",
+    "consensusRollback": "http://localhost:8080/consensus/rollback",
+    "consensusVote": "http://localhost:8080/consensus/vote",
+    "governanceForecast": "http://localhost:8080/governance/forecast",
+    "governanceLineage": "http://localhost:8080/governance/lineage",
+    "governanceMetrics": "http://localhost:8080/governance/metrics",
+    "governanceSimulate": "http://localhost:8080/governance/simulate",
+    "grafana": "http://localhost:3000",
+    "health": "http://localhost:8080/health",
+    "help": "http://localhost:8080/help",
+    "metrics": "http://localhost:9091/metrics",
+    "prometheus": "http://localhost:9090",
+    "recovery": "http://localhost:8080/healer/trigger-recovery",
+    "ticketApi": "http://localhost:8080/rt/REST/2.0/tickets",
+    "timeslipGen": "http://localhost:8080/timeslip-generator"
+  },
+  "hints": [
+    "Use /rt/REST/2.0/tickets for RT-style SOS operations",
+    "Ouroboros should own restarts and health reconciliation"
+  ],
+  "hosts": {
+    "alias": "sos-flagship",
+    "primary": ""
+  },
+  "lastUpdated": "2026-07-20T12:18:34Z",
+  "service": "sos"
+}

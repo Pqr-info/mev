@@ -1,0 +1,695 @@
+{
+  "type": "BOOTSTRAP_DISCOVER",
+  "hardware_fingerprint": "sha256(host-hw)",
+  "host_entropy": "base64(random)",
+  "capabilities": {
+    "needs_storage": true,
+    "needs_identity": true,
+    "needs_ports": true,
+    "needs_routes": true,
+    "needs_tunnels": true
+  }
+}
+{
+  "type": "BOOTSTRAP_OFFER",
+  "lease_id": 42,
+  "addr5d": "H7F3A.O1.L2.E1.RVA",
+  "ports": [8200],
+  "storage_block": "base64(encrypted_shard_cache)",
+  "tunnel_config": {
+    "wg_pubkey": "base64(node_pubkey)",
+    "peers": [
+      {
+        "addr5d": "H7F3B.O1.L2.E1.RNODE",
+        "endpoint": "46.224.219.174:51820"
+      }
+    ]
+  },
+  "route_hints": [
+    {
+      "from_addr5d": "H7F3A.O1.L2.E1.RVA",
+      "to_addr5d": "H7F3B.O1.L2.E1.RNODE",
+      "hops": ["H7F3A.O1.L2.E1.RVA"]
+    }
+  ],
+  "ttl_epoch": 100
+}
+{
+  "type": "BOOTSTRAP_REQUEST",
+  "lease_id": 42,
+  "addr5d": "H7F3A.O1.L2.E1.RVA",
+  "hardware_fingerprint": "sha256(host-hw)",
+  "signature": "base64(agent-signature)"
+}
+{
+  "type": "BOOTSTRAP_ACK",
+  "lease_id": 42,
+  "addr5d": "H7F3A.O1.L2.E1.RVA",
+  "ports": [8200],
+  "storage_block": "base64(encrypted_shard_cache)",
+  "tunnel_config": { ... },
+  "route_hints": [ ... ],
+  "ttl_epoch": 100
+}
+/etc/wireguard/s27.conf
+wg-quick up s27
+ADDR5D=H7F3A.O1.L2.E1.RVA
+PORTS=8200
+LEASE_ID=42
+vault_getShardedDescriptor("imagefx")
+total_shards = 5
+threshold = 3
+node_ids = ["H7F3B", "H7F3C", "H7F3D", "H7F3E", "H7F3F"]
+vault_getShard("imagefx", node_id)
+secret = recover_secret(shards)
+hcp_getRouteHints(addr5d)
+len(8NN(addr5d)) == 8
+GET /v1/secret/data/imagefx
+hcp_renewLease(42)
+hcp_releaseLease(42)
+// See my thinking
+
+RouteHints
+// See my thinking
+
+pallet-5d-hcp
+// See my thinking
+
+#[pallet::hooks]
+impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+    fn offchain_worker(block_number: BlockNumberFor<T>) {
+        if let Err(e) = Self::run_offchain_worker(block_number) {
+            log::error!("offchain worker error: {:?}", e);
+        }
+    }
+}
+// See my thinking
+
+impl<T: Config> Pallet<T> {
+    fn run_offchain_worker(_block_number: BlockNumberFor<T>) -> Result<(), &'static str> {
+        // 1. Fetch all active Vault-lane leases from storage
+        let leases: Vec<Lease<T>> = Leases::<T>::iter()
+            .filter(|(_, lease)| lease.role == ROLE_VAULT_ADAPTER)
+            .map(|(_, lease)| lease)
+            .collect();
+
+        // 2. Compute 8NN for each addr5d
+        for lease in leases.iter() {
+            let addr = lease.addr5d.clone();
+            let neighbors = Self::compute_8nn(&addr, &leases);
+
+            // 3. Build route hints for each neighbor
+            let hints = neighbors
+                .into_iter()
+                .map(|n| RouteHint::<T> {
+                    from_addr5d: addr.clone(),
+                    to_addr5d: n.addr5d.clone(),
+                    hops: vec![n.addr5d.clone()], // start simple: direct hop
+                })
+                .collect::<Vec<_>>();
+
+            // 4. Submit unsigned tx to update RouteHints on-chain
+            Self::submit_route_hints_update(addr.clone(), hints)?;
+        }
+
+        Ok(())
+    }
+
+    fn compute_8nn(
+        addr: &BoundedVec<u8, T::MaxAddr5dLength>,
+        leases: &[Lease<T>],
+    ) -> Vec<Lease<T>> {
+        let mut scored = leases
+            .iter()
+            .filter(|l| &l.addr5d != addr)
+            .map(|l| {
+                let d = Self::distance(addr, &l.addr5d);
+                (d, l.clone())
+            })
+            .collect::<Vec<_>>();
+
+        scored.sort_by_key(|(d, _)| *d);
+        scored.into_iter().take(8).map(|(_, l)| l).collect()
+    }
+
+    fn distance(
+        a: &BoundedVec<u8, T::MaxAddr5dLength>,
+        b: &BoundedVec<u8, T::MaxAddr5dLength>,
+    ) -> u32 {
+        // simple Hamming distance over bytes
+        a.iter()
+            .zip(b.iter())
+            .map(|(x, y)| if x == y { 0 } else { 1 })
+            .sum()
+    }
+
+    fn submit_route_hints_update(
+        addr: BoundedVec<u8, T::MaxAddr5dLength>,
+        hints: Vec<RouteHint<T>>,
+    ) -> Result<(), &'static str> {
+        use frame_system::offchain::SubmitTransaction;
+        let call = Call::<T>::push_route_hint_batch { addr5d: addr, hints };
+        SubmitTransaction::<T, Call<T>>::submit_unsigned_transaction(call.into())
+            .map_err(|_| "submit failed")
+    }
+}
+// See my thinking
+
+#[pallet::call]
+impl<T: Config> Pallet<T> {
+    #[pallet::call_index(3)]
+    pub fn push_route_hint_batch(
+        origin: OriginFor<T>,
+        addr5d: BoundedVec<u8, T::MaxAddr5dLength>,
+        hints: Vec<RouteHint<T>>,
+    ) -> DispatchResult {
+        ensure_none(origin)?; // unsigned, off-chain only
+        RouteHints::<T>::insert(addr5d, hints);
+        Ok(())
+    }
+}
+// See my thinking
+
+HostProfile
+// See my thinking
+
+ROLE_EXIT_NODE
+pallet-5d-hcp
+fn distance(a: &Addr5D, b: &Addr5D, mass_b: u32) -> u32 {
+    let hamming = a.bytes().iter()
+        .zip(b.bytes().iter())
+        .map(|(x, y)| if x == y { 0 } else { 1 })
+        .sum::<u32>();
+
+    // gravity well: lower distance for high-mass nodes
+    hamming.saturating_sub(mass_b)
+}
+mass_b
+HostProfile.mass: u32
+fn compute_8nn(addr: &Addr5D, leases: &[Lease], hosts: &[HostProfile]) -> Vec<Lease> {
+    let mut scored = leases.iter().map(|l| {
+        let host = hosts.iter().find(|h| h.host_id == l.host_id).unwrap();
+        let d = distance(addr, &l.addr5d, host.mass);
+        (d, l.clone())
+    }).collect::<Vec<_>>();
+
+    scored.sort_by_key(|(d, _)| *d);
+    scored.into_iter().take(8).map(|(_, l)| l).collect()
+}
+fn build_route_hints(addr: &Addr5D, nn8: &[Lease]) -> Vec<RouteHint> {
+    nn8.iter().map(|neighbor| {
+        RouteHint {
+            from_addr5d: addr.clone(),
+            to_addr5d: neighbor.addr5d.clone(),
+            hops: vec![neighbor.addr5d.clone()], // direct hop for now
+        }
+    }).collect()
+}
+fn run_offchain_worker() {
+    let leases = all_vault_lane_leases();
+    let hosts = all_hosts();
+
+    for lease in leases {
+        let nn8 = compute_8nn(&lease.addr5d, &leases, &hosts);
+        let hints = build_route_hints(&lease.addr5d, &nn8);
+        submit_route_hint_batch(lease.addr5d.clone(), hints);
+    }
+}
+https://vault.mesh.pqr.info
+exit-node:51820 (WireGuard)
+HostProfile
+mass = 1000
+role = ROLE_EXIT_NODE
+Client
+  ↓ HTTPS
+Cloudflare
+  ↓ WARP/ZeroTrust tunnel
+Exit Node (WireGuard)
+  ↓ Mesh overlay
+Vault Adapter (8200)
+  ↓ RPC
+Substrate 27
+  ↓ Shamir shards
+Mesh Nodes
+  ↓ Shamir reconstruction
+Vault Adapter
+  ↓ HTTP
+Client
+{
+  "src": addr5d,
+  "dst": addr5d,
+  "epoch": <u64>,
+  "nonce": <u64>,
+  "payload": <encrypted bytes>,
+  "auth": <signature>
+}
+Client
+  ↓ HTTPS
+Cloudflare ZeroTrust
+  ↓ Private Tunnel
+Exit Node (ROLE_EXIT_NODE)
+  ↓ S27‑Tunnel overlay
+Vault Adapter (ROLE_VAULT_ADAPTER)
+  ↓ Substrate RPC
+Vault Lane (L2)
+Client
+  ↓ HTTPS
+Cloudflare ZeroTrust
+  ↓ Private Tunnel
+Exit Node (ROLE_EXIT_NODE)
+  ↓ S27‑Tunnel overlay
+Vault Adapter (ROLE_VAULT_ADAPTER)
+  ↓ RPC
+Substrate 27
+  ↓ Shamir shards
+Mesh Nodes
+  ↓ Shamir reconstruction
+Vault Adapter
+  ↓ HTTP
+Client
+bootstrap_discover
+bootstrap_offer
+bootstrap_request
+// See my thinking
+
+pallet-5d-hcp
+// See my thinking
+
+HostProfile
+// See my thinking
+
+ROLE_VAULT_ADAPTER
+// See my thinking
+
+ROLE_EXIT_NODE
+// See my thinking
+
+hcp_getHosts()
+// See my thinking
+
+hcp_getHostsByRole(role)
+// See my thinking
+
+hcp_getExitNodes()
+// See my thinking
+
+hcp_getVaultLaneNodes()
+// See my thinking
+
+hcp_getHostsByRole(ROLE_EXIT_NODE)
+// See my thinking
+
+hcp_getHostsByRole(ROLE_VAULT_ADAPTER)
+// See my thinking
+
+// Cloudflare Worker pseudo-code
+export default {
+  async fetch(request, env, ctx) {
+    // 1. Ask Substrate who should handle this
+    const routerReq = {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "hcp_routeHttp",
+      params: [request.url, "ROLE_VAULT_ADAPTER"]
+    };
+    const routerRes = await fetch(env.SUBSTRATE_RPC_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(routerReq),
+    });
+    const { result } = await routerRes.json();
+    const targetUrl = result.target_url; // e.g. "https://vault-node.mesh:443"
+
+    // 2. Forward the request
+    return fetch(targetUrl, request);
+  }
+};
+// See my thinking
+
+hcp_routeHttp
+// See my thinking
+
+/64
+// See my thinking
+
+/64
+// See my thinking
+
+2001:db8:27:7f3a::/64
+// See my thinking
+
+2001:db8:27:7f3a::42
+// See my thinking
+
+2001:db8:27:7f3a::43
+// See my thinking
+
+HOST
+// See my thinking
+
+/64
+// See my thinking
+
+LANE
+// See my thinking
+
+ROLE
+// See my thinking
+
+H7F3A.O1.L2.E1.RVA
+// See my thinking
+
+2001:db8:27:7f3a:1:2:1:va
+// See my thinking
+
+HostProfile
+// See my thinking
+
+ipv6_prefix
+// See my thinking
+
+2001:db8:27:7f3a::/64
+// See my thinking
+
+Lease
+// See my thinking
+
+ipv6_addr
+// See my thinking
+
+hcp_getHostsByRole
+// See my thinking
+
+hcp_getRouteHints
+// See my thinking
+
+/64
+// See my thinking
+
+addr5d = H7F3A.O1.L2.E1.RVA
+// See my thinking
+
+ipv6 = 2001:db8:27:7f3a::8200
+// See my thinking
+
+port = 8200
+// See my thinking
+
+/64
+// See my thinking
+
+vault_getShard
+// See my thinking
+
+vault_getShardedDescriptor
+// See my thinking
+
+/64
+// See my thinking
+
+/64
+/64
+addr5d
+ipv6_suffix
+addr5d
+/64
+ipv6_suffix
+addr5d
+ipv6_suffix
+host_prefix::ipv6_suffix
+// See my thinking
+
+/64
+// See my thinking
+
+addr5d
+// See my thinking
+
+ipv6_suffix
+// See my thinking
+
+host_prefix::ipv6_suffix
+// See my thinking
+
+ipv6_prefix
+// See my thinking
+
+ipv6_suffix
+// See my thinking
+
+HostProfile
+// See my thinking
+
+Lease
+// See my thinking
+
+addr5d → u64
+// See my thinking
+
+addr5d
+// See my thinking
+
+ipv6_suffix
+// See my thinking
+
+addr5d → u64
+/64
+/64
+Client → IPv6 → NG → IPv6 mesh → Vault Lane → Substrate → Shards → Response
+Client → Cloudflare Tunnel → NG → IPv6 mesh → Vault Lane → Substrate → Shards → Response
+Everything = IPv6
+Everything = 5D‑encoded
+Everything = deterministic
+Everything = sovereign
+/64
+addr5d → 128-bit hash → base32 → 5 chars
+H7F3A.O1.L2.E1.RVA
+↓ hash
+0xA1B2C3D4E5F6A7B8
+↓ base32
+QJX9T
+Lease
+pub shortcode: BoundedVec<u8, T::MaxShortcodeLength>,
+HostProfile
+pub host_shortcode: BoundedVec<u8, T::MaxShortcodeLength>,
+pub secret_shortcode: BoundedVec<u8, T::MaxShortcodeLength>,
+QJX9T
+ZKTRP
+MNVQF
+H7F3A
+F3A7H
+lease_id = 42
+shortcode = QJX9T
+route to H7F3A.O1.L2.E1.RVA
+route to QJX9T
+/64
+NG announces:
+  Host F3A7H → 2001:db8:27:7f3a::/64
+  Vault QJX9T → 2001:db8:27:7f3a::42
+// See my thinking
+
+H7F3A.O1.L2.E1.RVA
+// See my thinking
+
+fn addr5d_to_bytes(addr5d: &str) -> Vec<u8> {
+    addr5d.as_bytes().to_vec()
+}
+// See my thinking
+
+fn hash_addr5d(addr5d: &str) -> [u8; 16] {
+    use blake2::Blake2s;
+    use blake2::digest::{Update, VariableOutput};
+
+    let mut hasher = Blake2s::new(16).unwrap();
+    hasher.update(addr5d.as_bytes());
+    let mut out = [0u8; 16];
+    hasher.finalize_variable(|res| out.copy_from_slice(res));
+    out
+}
+// See my thinking
+
+const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+// See my thinking
+
+fn encode_shortcode(addr5d: &str) -> String {
+    let digest = hash_addr5d(addr5d);
+    // treat digest as big integer, emit base32
+    let mut value = 0u128;
+    for b in digest.iter() {
+        value = (value << 8) | (*b as u128);
+    }
+
+    let mut chars = Vec::new();
+    for _ in 0..5 {
+        let idx = (value & 0x1F) as usize; // 5 bits
+        chars.push(ALPHABET[idx]);
+        value >>= 5;
+    }
+
+    chars.reverse(); // most significant first
+    String::from_utf8(chars).unwrap()
+}
+// See my thinking
+
+QJX9T
+// See my thinking
+
+pub struct Lease<T: Config> {
+    pub addr5d: BoundedVec<u8, T::MaxAddr5dLength>,
+    pub ipv6_suffix: u64,
+    pub shortcode: BoundedVec<u8, T::MaxShortcodeLength>, // e.g. "QJX9T"
+    // ...
+}
+// See my thinking
+
+pub struct VaultSecretDescriptor<T: Config> {
+    pub addr5d: BoundedVec<u8, T::MaxAddr5dLength>,
+    pub shortcode: BoundedVec<u8, T::MaxShortcodeLength>,
+    pub total_shards: u8,
+    pub threshold: u8,
+    pub node_ids: Vec<HostId>,
+}
+// See my thinking
+
+fn register_secret(addr5d: &str, ...) {
+    let shortcode = encode_shortcode(addr5d);
+    // store both addr5d and shortcode
+}
+// See my thinking
+
+fn vault_getDescriptorByShortcode(code: &str) -> Option<VaultSecretDescriptor> {
+    // lookup shortcode → descriptor
+}
+// See my thinking
+
+addr5d = H7F3A.O1.L2.E1.RVA
+// See my thinking
+
+ipv6_suffix = u64
+// See my thinking
+
+shortcode = encode_shortcode(addr5d)
+// See my thinking
+
+VAULT[QJX9T]
+// See my thinking
+
+QJX9T → addr5d → IPv6
+const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+fn hash_addr5d(addr5d: &str) -> [u8; 16] {
+    use blake2::Blake2s;
+    use blake2::digest::{Update, VariableOutput};
+
+    let mut hasher = Blake2s::new(16).unwrap();
+    hasher.update(addr5d.as_bytes());
+    let mut out = [0u8; 16];
+    hasher.finalize_variable(|res| out.copy_from_slice(res));
+    out
+}
+
+fn encode_shortcode(addr5d: &str) -> String {
+    let digest = hash_addr5d(addr5d);
+
+    let mut value = 0u128;
+    for b in digest.iter() {
+        value = (value << 8) | (*b as u128);
+    }
+
+    let mut chars = Vec::new();
+    for _ in 0..5 {
+        let idx = (value & 0x1F) as usize;
+        chars.push(ALPHABET[idx]);
+        value >>= 5;
+    }
+
+    chars.reverse();
+    String::from_utf8(chars).unwrap()
+}
+addr5d = "H7F3A.O1.L2.E1.RVA"
+shortcode = "QJX9T"
+pub struct VaultSecretDescriptor<T: Config> {
+    pub addr5d: BoundedVec<u8, T::MaxAddr5dLength>,
+    pub shortcode: BoundedVec<u8, T::MaxShortcodeLength>,
+    pub total_shards: u8,
+    pub threshold: u8,
+    pub node_ids: Vec<HostId>,
+}
+pub struct Lease<T: Config> {
+    pub addr5d: BoundedVec<u8, T::MaxAddr5dLength>,
+    pub ipv6_suffix: u64,
+    pub shortcode: BoundedVec<u8, T::MaxShortcodeLength>,
+    // ...
+}
+addr5d = "H7F3A.O1.L2.E1.RVA"
+shortcode = encode_shortcode(addr5d)
+ipv6_suffix = encode_ipv6_suffix(addr5d)
+VAULT[QJX9T] → 2001:db8:27:7f3a::42
+fn vault_getDescriptorByShortcode(code: &str) -> Option<VaultSecretDescriptor> {
+    ShortcodeMap::<T>::get(code)
+}
+sp_api::decl_runtime_apis! {
+    pub trait ShortcodeApi {
+        fn resolve_shortcode(code: Vec<u8>) -> Option<ShortcodeResolution>;
+    }
+}
+
+pub struct ShortcodeResolution {
+    pub addr5d: Vec<u8>,
+    pub ipv6_suffix: u64,
+    pub lease_id: u64,
+}
+QJX9T → H7F3A.O1.L2.E1.RVA → 2001:db8:27:7f3a::42 → lease 42
+--bg
+--fg
+--accent
+--panel
+localStorage
+autocomplete="on"
+autocomplete="off"
+https://api.datamuse.com/words?ml={word}
+(simple, low detail)
+(balanced)
+(high detail, vivid)
+(masterpiece:1.2, ultra‑sharp, intricate textures)
+aspectRatio
+qualityLevel
+colorDepth
+MINT NFT — $1
+addr5d
+ipv6_suffix
+shortcode
+Image ID: QJX9T
+5D Address: H7F3A.O1.L2.E1.RVA
+Shortcode: QJX9T
+IPv6: 2001:db8:27:7f3a::42
+Lease: 42
+$1 Mint
+--bg-primary
+--bg-secondary
+--text-primary
+--accent
+--border-radius
+localStorage
+<input id="prompt" autocomplete="off">
+https://api.datamuse.com/words?ml={word}
+prompt.addEventListener("dblclick", async (e) => {
+  const word = getSelectedWord();
+  const res = await fetch(`https://api.datamuse.com/words?ml=${word}`);
+  const synonyms = await res.json();
+  showSynonymDropdown(synonyms.map(s => s.word));
+});
+{
+  "aspectRatio": "1:1",
+  "quality": "ultra",
+  "colorDepth": "32bit"
+}
+MINT NFT — $1
+$1 = 0.000015 BTC
+$1 = 0.00052 ETH
+$1 = 0.07 SOL
+$1 = 1.00 S27
+Image ID: QJX9T
+[QJX9T] “roast pig, ultra detail, square”
+Minting Image QJX9T
+Render complete — shortcode QJX9T

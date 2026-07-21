@@ -70,3 +70,8 @@ Thumbs.db
 *.pem
 *.key
 keystore/
+
+# Data and Virtual Environments
+data/
+output/
+.venv/

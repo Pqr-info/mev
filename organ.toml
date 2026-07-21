@@ -1,9 +1,9 @@
 [organ]
-name = "MEV Engine"
-id = "mev"
-version = "1.0.0"
-role = "high-frequency arbitrage + mempool analysis"
+name = "MEV Engine (TRADER Organ)"
+id = "mev_trader"
+version = "2.0.0"
+role = "constitutional trading & state mutation engine"
 
 [interfaces]
-ingress = ["mempool.firehose", "dex.state", "arb.node"]
-egress = ["bundle.flashbots", "arb.sequencer", "swarm.strategy"]
+ingress = ["mempool.firehose", "dex.state", "arb.node", "substrate.portfolio"]
+egress = ["bundle.flashbots", "arb.sequencer", "swarm.strategy", "proposal_engine.mutation"]

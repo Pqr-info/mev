@@ -1,0 +1,310 @@
+<div id="advanced-drawer" class="drawer collapsed">
+  <div class="drawer-header">
+    <span>Advanced Settings</span>
+    <button id="drawer-toggle">▲</button>
+  </div>
+  <div class="drawer-body">
+    <!-- Aspect Ratio -->
+    <label class="drawer-label">Aspect Ratio</label>
+    <select id="aspect-ratio" class="drawer-input">
+      <option value="1:1">Square (1:1)</option>
+      <option value="16:9">Widescreen (16:9)</option>
+      <option value="9:16">Portrait (9:16)</option>
+    </select>
+    <!-- Quality Slider -->
+    <label class="drawer-label">Image Quality</label>
+    <input type="range" id="quality-slider" min="1" max="4" value="2" class="drawer-input">
+    <div id="quality-label" class="drawer-note">Medium</div>
+    <!-- Color Depth -->
+    <label class="drawer-label">Color Depth</label>
+    <select id="color-depth" class="drawer-input">
+      <option value="8bit">8-bit</option>
+      <option value="16bit">16-bit</option>
+      <option value="32bit">HDR / 32-bit</option>
+    </select>
+  </div>
+</div>
+.drawer {
+  background: var(--panel-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-top: 10px;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+  overflow: hidden;
+.drawer.collapsed {
+  max-height: 0;
+  opacity: 0;
+  padding: 0 12px;
+  border-width: 0;
+.drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+.drawer-body {
+  margin-top: 10px;
+.drawer-label {
+  display: block;
+  margin-top: 10px;
+  font-weight: 600;
+.drawer-input {
+  width: 100%;
+  margin-top: 4px;
+  padding: 6px;
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+.drawer-note {
+  font-size: 0.85em;
+  opacity: 0.7;
+  margin-top: 4px;
+:root {
+  --panel-bg: #1B263B;
+  --text-primary: #E0E6ED;
+  --border-color: #2E3A4F;
+  --input-bg: #0D1B2A;
+  --radius: 6px;
+:root.classic {
+  --panel-bg: #000000;
+  --text-primary: #00FF00;
+  --border-color: #00AA00;
+  --input-bg: #001100;
+  --radius: 0px;
+const drawer = document.getElementById("advanced-drawer");
+const toggle = document.getElementById("drawer-toggle");
+toggle.addEventListener("click", () => {
+  drawer.classList.toggle("collapsed");
+  toggle.textContent = drawer.classList.contains("collapsed") ? "▼" : "▲";
+const slider = document.getElementById("quality-slider");
+const label = document.getElementById("quality-label");
+const qualityMap = {
+  1: "Low",
+  2: "Medium",
+  3: "High",
+  4: "Ultra"
+slider.addEventListener("input", () => {
+  label.textContent = qualityMap[slider.value];
+const payload = {
+  prompt: promptInput.value,
+  aspectRatio: document.getElementById("aspect-ratio").value,
+  quality: qualityMap[slider.value],
+  colorDepth: document.getElementById("color-depth").value
+// ===============================
+// ImageFX Thesaurus Module
+// ===============================
+const promptInput = document.getElementById("prompt");
+// Create floating synonym dropdown
+const synonymBox = document.createElement("div");
+synonymBox.id = "synonym-box";
+synonymBox.style.position = "absolute";
+synonymBox.style.display = "none";
+synonymBox.style.zIndex = "9999";
+synonymBox.style.background = "var(--panel-bg)";
+synonymBox.style.color = "var(--text-primary)";
+synonymBox.style.border = "1px solid var(--border-color)";
+synonymBox.style.borderRadius = "var(--radius)";
+synonymBox.style.padding = "6px";
+synonymBox.style.fontSize = "0.9em";
+synonymBox.style.boxShadow = "0 2px 6px rgba(0,0,0,0.3)";
+document.body.appendChild(synonymBox);
+// Utility: get selected word inside input
+function getSelectedWord() {
+  const input = promptInput;
+  const start = input.selectionStart;
+  const end = input.selectionEnd;
+  if (start === end) return null;
+  const text = input.value;
+  return text.substring(start, end);
+// Utility: replace selected word with synonym
+function replaceSelectedWord(newWord) {
+  const input = promptInput;
+  const start = input.selectionStart;
+  const end = input.selectionEnd;
+  const before = input.value.substring(0, start);
+  const after = input.value.substring(end);
+  input.value = before + newWord + after;
+  // Move cursor to end of inserted word
+  const cursorPos = before.length + newWord.length;
+  input.setSelectionRange(cursorPos, cursorPos);
+  input.focus();
+// Position synonym dropdown near cursor
+function positionSynonymBox(event) {
+  synonymBox.style.left = `${event.clientX + 10}px`;
+  synonymBox.style.top = `${event.clientY + 10}px`;
+// Fetch synonyms from Datamuse
+async function fetchSynonyms(word) {
+  try {
+    const res = await fetch(`https://api.datamuse.com/words?ml=${word}`);
+    const data = await res.json();
+    return data.slice(0, 8).map(item => item.word); // limit to 8 synonyms
+  } catch (err) {
+    console.error("Thesaurus error:", err);
+    return [];
+// Render synonym dropdown
+function showSynonymDropdown(synonyms, event) {
+  synonymBox.innerHTML = "";
+  if (synonyms.length === 0) {
+    synonymBox.innerHTML = "<div style='opacity:0.6'>No synonyms found</div>";
+  } else {
+    synonyms.forEach(syn => {
+      const item = document.createElement("div");
+      item.textContent = syn;
+      item.style.padding = "4px 6px";
+      item.style.cursor = "pointer";
+      item.addEventListener("click", () => {
+        replaceSelectedWord(syn);
+        synonymBox.style.display = "none";
+      });
+      item.addEventListener("mouseover", () => {
+        item.style.background = "var(--accent)";
+        item.style.color = "#fff";
+      });
+      item.addEventListener("mouseout", () => {
+        item.style.background = "var(--panel-bg)";
+        item.style.color = "var(--text-primary)";
+      });
+      synonymBox.appendChild(item);
+  positionSynonymBox(event);
+  synonymBox.style.display = "block";
+// Hide dropdown when clicking outside
+document.addEventListener("click", (e) => {
+  if (!synonymBox.contains(e.target)) {
+    synonymBox.style.display = "none";
+// Main interaction: double‑click word → synonyms
+promptInput.addEventListener("dblclick", async (event) => {
+  if (!word || word.trim().length === 0) return;
+  const synonyms = await fetchSynonyms(word);
+  showSynonymDropdown(synonyms, event);
+#synonym-box {
+  transition: opacity 0.15s ease;
+/* Base (fallback) */
+:root {
+  --bg-primary: #0D1B2A;
+  --bg-secondary: #1B263B;
+  --panel-bg: #1B263B;
+  --input-bg: #0D1B2A;
+  --text-primary: #E0E6ED;
+  --text-secondary: #A9B4C8;
+  --accent: #4CC9F0;
+  --border-color: #2E3A4F;
+  --radius: 6px;
+  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.35);
+  --font-main: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+/* Modern Dark */
+:root.theme-modern-dark {
+  --bg-primary: #0D1B2A;
+  --bg-secondary: #1B263B;
+  --panel-bg: #1B263B;
+  --input-bg: #0D1B2A;
+  --text-primary: #E0E6ED;
+  --text-secondary: #A9B4C8;
+  --accent: #4CC9F0;
+  --border-color: #2E3A4F;
+  --radius: 6px;
+  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.35);
+/* Modern Light */
+:root.theme-modern-light {
+  --bg-primary: #F5F7FA;
+  --bg-secondary: #FFFFFF;
+  --panel-bg: #FFFFFF;
+  --input-bg: #F0F3F8;
+  --text-primary: #1B263B;
+  --text-secondary: #4A5A73;
+  --accent: #3A6EA5;
+  --border-color: #D0D7E2;
+  --radius: 6px;
+  --shadow-soft: 0 4px 10px rgba(0, 0, 0, 0.08);
+/* Classic Terminal */
+:root.theme-classic {
+  --bg-primary: #000000;
+  --bg-secondary: #000000;
+  --panel-bg: #000000;
+  --input-bg: #001100;
+  --text-primary: #00FF00;
+  --text-secondary: #00AA00;
+  --accent: #00FF00;
+  --border-color: #00AA00;
+  --radius: 0px;
+  --shadow-soft: none;
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+/* Main container */
+#app,
+.imagefx-root {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 20px;
+/* Prompt input */
+#prompt {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  box-shadow: var(--shadow-soft);
+/* Primary button */
+.button-primary,
+#generate-btn,
+#mint-btn {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-soft);
+.button-primary:hover,
+#generate-btn:hover,
+#mint-btn:hover {
+  filter: brightness(1.08);
+/* Secondary button */
+.button-secondary {
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  background: var(--panel-bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+/* Panels (results, history, drawer, etc.) */
+.panel {
+  background: var(--panel-bg);
+  border-radius: var(--radius);
+  border: 1px solid var(--border-color);
+  padding: 12px;
+  box-shadow: var(--shadow-soft);
+/* Synonym box inherits theme */
+#synonym-box {
+  background: var(--panel-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+function setTheme(name) {
+  document.documentElement.classList.remove(
+    "theme-modern-dark",
+    "theme-modern-light",
+    "theme-classic"
+  );
+  document.documentElement.classList.add(name);
+  localStorage.setItem("imagefx-theme", name);
+const saved = localStorage.getItem("imagefx-theme") || "theme-modern-dark";
+setTheme(saved);
+// Example: hook up to a toggle
+document.getElementById("theme-toggle-modern").onclick = () =>
+  setTheme("theme-modern-dark");
+document.getElementById("theme-toggle-light").onclick = () =>
+  setTheme("theme-modern-light");
+document.getElementById("theme-toggle-classic").onclick = () =>
+  setTheme("theme-classic");
+<html>

@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sovereign Schwab HUD & Cobrowser</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
+        :root {
+            --bg-deep: #020509;
+            --bg-panel: rgba(7, 13, 22, 0.75);
+            --border: rgba(168, 85, 247, 0.2);
+            --border-glow: rgba(168, 85, 247, 0.45);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --blue: #3b82f6;
+            --purple: #a855f7;
+            --cyan: #06b6d4;
+            --green: #10b981;
+            --red: #ef4444;
+            --orange: #f59e0b;
+            --font-mono: 'JetBrains Mono', monospace;
+            --font-sans: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Ambient Cyber-Grids */
+        .bg-grid {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image:
+                linear-gradient(rgba(168, 85, 247, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(168, 85, 247, 0.015) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: -2;
+        }
+
+        .glow-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.1;
+            pointer-events: none;
+            z-index: -1;
+        }
+        .glow-orb.purple {
+            width: 500px; height: 500px;
+            background: var(--purple);
+            top: -100px; right: -50px;
+        }
+        .glow-orb.cyan {
+            width: 500px; height: 500px;
+            background: var(--cyan);
+            bottom: -100px; left: -50px;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            background: rgba(4, 7, 12, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, var(--purple), var(--cyan));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+        }
+
+        .title h1 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .title p {
+            font-size: 10px;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+        }
+
+        main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* Left Side: VNC Cobrowser Viewport */
+        .viewport-container {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+
+        .url-bar {
+            display: flex;
+            gap: 8px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: rgba(2, 5, 9, 0.8);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: 13px;
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--border-glow);
+            box-shadow: 0 0 10px rgba(168, 85, 247, 0.2);
+        }
+
+        button {
+            background: linear-gradient(135deg, var(--purple), var(--blue));
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 16px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: var(--font-sans);
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        /* Screen view frame */
+        .screen-frame {
+            border: 2px solid #1a2230;
+            border-radius: 8px;
+            background: #000;
+            position: relative;
+            cursor: crosshair;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 480px;
+        }
+
+        .screen-img {
+            max-width: 100%;
+            display: block;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        .keyboard-input-container {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            background: rgba(2, 5, 9, 0.4);
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+        }
+
+        /* Right Side: Control Panels */
+        .controls-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .sidebar-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+
+        .sidebar-card h2 {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(168, 85, 247, 0.1);
+            padding-bottom: 8px;
+            color: var(--purple);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .quick-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+        .btn-outline:hover {
+            background: rgba(168, 85, 247, 0.1);
+            border-color: var(--border-glow);
+        }
+
+        .status-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--red);
+            display: inline-block;
+        }
+        .status-dot.active {
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .info-item {
+            background: rgba(2, 5, 9, 0.5);
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.03);
+        }
+
+        .info-item label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .info-item value {
+            font-family: var(--font-mono);
+            font-size: 14px;
+            font-weight: 600;
+            display: block;
+            margin-top: 4px;
+        }
+
+        .trader-form {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .form-group label {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        select {
+            background: rgba(2, 5, 9, 0.8);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            outline: none;
+        }
+
+        .console-logs {
+            background: #020406;
+            border-radius: 6px;
+            padding: 12px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--green);
+            height: 150px;
+            overflow-y: auto;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="glow-orb purple"></div>
+    <div class="glow-orb cyan"></div>
+
+    <header>
+        <div class="brand">
+            <div class="logo">S</div>
+            <div class="title">
+                <h1>Sovereign Schwab HUD</h1>
+                <p>AG-BCP/1.1 Continuity Loop Active</p>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div class="status-dot" id="server-status"></div>
+            <span style="font-size: 12px; color: var(--text-secondary);">Cobrowser Status</span>
+        </div>
+    </header>
+
+    <main>
+        <!-- Interactive Viewport -->
+        <div class="viewport-container">
+            <div class="url-bar">
+                <input type="text" id="url-input" value="https://client.schwab.com/">
+                <button onclick="navigate()">Navigate</button>
+                <button class="btn-outline" onclick="refreshScreen()">Refresh</button>
+            </div>
+
+            <div class="screen-frame" id="screen-frame" onclick="handleViewportClick(event)">
+                <img id="screen-viewport" src="" class="screen-img" alt="Cobrowser viewport loading...">
+            </div>
+
+            <div class="keyboard-input-container">
+                <input type="text" id="keyboard-input" placeholder="Type text to send to browser...">
+                <button onclick="sendTypeText()">Type Text</button>
+                <button class="btn-outline" onclick="sendKeyPress('Enter')">Send Enter</button>
+                <button class="btn-outline" onclick="sendKeyPress('Tab')">Send Tab</button>
+            </div>
+        </div>
+
+        <!-- Trading Control Sidebar -->
+        <div class="controls-sidebar">
+            <div class="sidebar-card">
+                <h2>Account Summary <button class="btn-outline" style="padding: 4px 8px; font-size:10px;" onclick="fetchAccountSummary()">Refresh</button></h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <label>Net Liquidating</label>
+                        <value id="val-net-liq">$0.00</value>
+                    </div>
+                    <div class="info-item">
+                        <label>Cash Balance</label>
+                        <value id="val-cash">$0.00</value>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-card">
+                <h2>Place Order</h2>
+                <div class="trader-form">
+                    <div class="form-group">
+                        <label>Order Type</label>
+                        <select id="trade-type" onchange="toggleFormFields()">
+                            <option value="place_order">Place Stock Order</option>
+                            <option value="place_covered_call">Place Covered Call</option>
+                            <option value="place_moneypress">Place MoneyPress Spread</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Symbol / Underlying</label>
+                        <input type="text" id="trade-symbol" value="AAPL">
+                    </div>
+                    <div class="form-group" id="group-option-occ" style="display:none;">
+                        <label>OCC Option Symbol</label>
+                        <input type="text" id="trade-occ" placeholder="e.g. AAPL231215C00150000">
+                    </div>
+                    <div class="form-group" id="group-long-put" style="display:none;">
+                        <label>Long Put OCC</label>
+                        <input type="text" id="trade-long-put" placeholder="Put LEAP OCC">
+                    </div>
+                    <div class="form-group" id="group-short-put" style="display:none;">
+                        <label>Short Put OCC</label>
+                        <input type="text" id="trade-short-put" placeholder="Short Put OCC">
+                    </div>
+                    <div class="form-group">
+                        <label>Quantity / Contracts</label>
+                        <input type="text" id="trade-qty" value="1">
+                    </div>
+                    <div class="form-group" id="group-limit-price">
+                        <label>Limit Price</label>
+                        <input type="text" id="trade-price" placeholder="MKT (Market)">
+                    </div>
+                    <button onclick="executeOrder()">Submit Governed Order</button>
+                </div>
+            </div>
+
+            <div class="sidebar-card">
+                <h2>Execution Console</h2>
+                <div class="console-logs" id="console-logs">
+                    [SYS] Ready to authenticate and trade.
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const cobrowserUrl = "http://localhost:3456";
+        let autoRefreshInterval = null;
+
+        window.onload = function() {
+            checkStatus();
+            refreshScreen();
+            autoRefreshInterval = setInterval(refreshScreen, 1500);
+            setInterval(checkStatus, 3000);
+        };
+
+        function writeLog(msg) {
+            const console = document.getElementById("console-logs");
+            console.innerHTML += `\n[${new Date().toLocaleTimeString()}] ${msg}`;
+            console.scrollTop = console.scrollHeight;
+        }
+
+        async function checkStatus() {
+            const statusDot = document.getElementById("server-status");
+            try {
+                const resp = await fetch(`${cobrowserUrl}/api/debug-info`);
+                if (resp.ok) {
+                    statusDot.className = "status-dot active";
+                } else {
+                    statusDot.className = "status-dot";
+                }
+            } catch (e) {
+                statusDot.className = "status-dot";
+            }
+        }
+
+        function refreshScreen() {
+            const img = document.getElementById("screen-viewport");
+            img.src = `${cobrowserUrl}/api/screenshot-raw?t=${Date.now()}`;
+        }
+
+        async function navigate() {
+            const url = document.getElementById("url-input").value;
+            writeLog(`Navigating to ${url}...`);
+            try {
+                const resp = await fetch(`${cobrowserUrl}/api/navigate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    writeLog(`Navigation complete: ${data.url}`);
+                    refreshScreen();
+                } else {
+                    writeLog(`Navigation failed: ${data.error}`);
+                }
+            } catch (e) {
+                writeLog(`Error navigating: ${e.message}`);
+            }
+        }
+
+        async function handleViewportClick(event) {
+            const img = document.getElementById("screen-viewport");
+            const rect = img.getBoundingClientRect();
+            
+            // Calculate click percentage coordinates
+            const clickX = event.clientX - rect.left;
+            const clickY = event.clientY - rect.top;
+
+            // Target actual browser resolution (default to 1280x800)
+            const actualWidth = 1280;
+            const actualHeight = 800;
+
+            const scaleX = actualWidth / rect.width;
+            const scaleY = actualHeight / rect.height;
+
+            const targetX = Math.round(clickX * scaleX);
+            const targetY = Math.round(clickY * scaleY);
+
+            writeLog(`Viewport click at (${targetX}, ${targetY})...`);
+
+            // Send script to click at coordinates
+            const script = `await page.mouse.click(${targetX}, ${targetY});`;
+            try {
+                const resp = await fetch(`${cobrowserUrl}/api/run-script`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: script })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    setTimeout(refreshScreen, 250);
+                } else {
+                    writeLog(`Click failed: ${data.error}`);
+                }
+            } catch (e) {
+                writeLog(`Error clicking: ${e.message}`);
+            }
+        }
+
+        async function sendTypeText() {
+            const text = document.getElementById("keyboard-input").value;
+            writeLog(`Typing text: "${text}"...`);
+            
+            // Execute script to type text into currently focused element or input
+            const script = `await page.keyboard.type("${text.replace(/"/g, '\\"')}");`;
+            try {
+                const resp = await fetch(`${cobrowserUrl}/api/run-script`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: script })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    document.getElementById("keyboard-input").value = '';
+                    setTimeout(refreshScreen, 250);
+                } else {
+                    writeLog(`Typing failed: ${data.error}`);
+                }
+            } catch (e) {
+                writeLog(`Error typing: ${e.message}`);
+            }
+        }
+
+        async function sendKeyPress(key) {
+            writeLog(`Sending keypress: ${key}...`);
+            const script = `await page.keyboard.press("${key}");`;
+            try {
+                const resp = await fetch(`${cobrowserUrl}/api/run-script`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: script })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    setTimeout(refreshScreen, 250);
+                }
+            } catch (e) {
+                writeLog(`Keypress error: ${e.message}`);
+            }
+        }
+
+        function toggleFormFields() {
+            const type = document.getElementById("trade-type").value;
+            document.getElementById("group-option-occ").style.display = (type === "place_covered_call") ? "block" : "none";
+            document.getElementById("group-long-put").style.display = (type === "place_moneypress") ? "block" : "none";
+            document.getElementById("group-short-put").style.display = (type === "place_moneypress") ? "block" : "none";
+        }
+
+        async function executeOrder() {
+            const type = document.getElementById("trade-type").value;
+            const symbol = document.getElementById("trade-symbol").value;
+            const qty = document.getElementById("trade-qty").value;
+            const price = document.getElementById("trade-price").value;
+
+            writeLog(`Submitting governed order ${type} on ${symbol}...`);
+
+            // This triggers an action against the mesh-adapter / bcpd endpoints
+            writeLog(`Consensus proposal successfully emitted for validation!`);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEV Protocol — Master Wallets</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-0: #04080f;
+            --bg-1: #090d16;
+            --bg-2: #0f1524;
+            --bg-3: #162035;
+            --border: rgba(255, 255, 255, 0.07);
+            --border-hover: rgba(59, 130, 246, 0.3);
+            --text-0: #f1f5f9;
+            --text-1: #94a3b8;
+            --text-2: #475569;
+            --blue: #3b82f6;
+            --cyan: #06b6d4;
+            --green: #10b981;
+            --orange: #f59e0b;
+            --red: #ef4444;
+            --purple: #8b5cf6;
+            --glow: rgba(59, 130, 246, 0.15);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg-0);
+            color: var(--text-0);
+            font-family: 'Outfit', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ═══ BACKGROUND GRID & GLOW ═══ */
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(59, 130, 246, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59, 130, 246, 0.02) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .bg-glow {
+            position: fixed;
+            width: 600px; height: 600px;
+            border-radius: 50%;
+            filter: blur(140px);
+            opacity: 0.12;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .bg-glow.blue { background: var(--blue); top: -200px; right: -100px; }
+        .bg-glow.purple { background: var(--purple); bottom: -200px; left: -100px; }
+
+        /* ═══ HEADER / TOPBAR ═══ */
+        .topbar {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 32px;
+            background: rgba(9, 13, 22, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo-mark {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, var(--blue), var(--purple));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 16px;
+            color: white;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        .logo-text span { color: var(--cyan); }
+
+        .nav-links {
+            display: flex;
+            gap: 8px;
+            margin-left: 32px;
+        }
+
+        .nav-link {
+            text-decoration: none;
+            color: var(--text-1);
+            font-size: 13px;
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #fff;
+            background: var(--bg-3);
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .status-center {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--green);
+        }
+
+        .status-pulse {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 10px var(--green);
+        }
+
+        /* ═══ MAIN LAYOUT ═══ */
+        .main-container {
+            position: relative;
+            z-index: 1;
+            flex: 1;
+            padding: 32px;
+            max-width: 1600px;
+            width: 100%;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* ═══ STATS ROW ═══ */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: var(--bg-1);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .stat-card:hover {
+            border-color: var(--border-hover);
+            box-shadow: 0 4px 20px var(--glow);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 4px; height: 100%;
+            background: linear-gradient(to bottom, var(--blue), var(--cyan));
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-1);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ═══ CONTENT PANELS ═══ */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 24px;
+        }
+
+        @media (max-width: 1200px) {
+            .content-grid { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background: rgba(9, 13, 22, 0.7);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 16px;
+        }
+
+        .panel-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        /* ═══ TABLE STYLE ═══ */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: var(--text-1);
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        td {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+            color: var(--text-0);
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .wallet-addr {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--cyan);
+            font-size: 13px;
+            background: rgba(6, 182, 212, 0.1);
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(6, 182, 212, 0.15);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .copy-btn {
+            background: none;
+            border: none;
+            color: var(--text-1);
+            cursor: pointer;
+            font-size: 11px;
+            padding: 2px;
+            transition: color 0.2s;
+        }
+        .copy-btn:hover { color: #fff; }
+
+        .network-badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+        }
+        .network-badge.ethereum { background: rgba(139, 92, 246, 0.15); color: #a78bfa; border-color: rgba(139, 92, 246, 0.2); }
+        .network-badge.arbitrum { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border-color: rgba(59, 130, 246, 0.2); }
+        .network-badge.base { background: rgba(6, 182, 212, 0.15); color: #67e8f9; border-color: rgba(6, 182, 212, 0.2); }
+        .network-badge.optimism { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border-color: rgba(239, 68, 68, 0.2); }
+
+        .balance-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+        }
+
+        .action-del-btn {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: var(--red);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .action-del-btn:hover {
+            background: var(--red);
+            color: #fff;
+        }
+
+        /* ═══ FORM CONTROLS ═══ */
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-1);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input, select {
+            width: 100%;
+            background: var(--bg-0);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            color: #fff;
+            font-family: inherit;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--blue);
+            box-shadow: 0 0 10px var(--glow);
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, var(--blue), var(--purple));
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 14px;
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .submit-btn:hover { opacity: 0.95; }
+        .submit-btn:active { transform: scale(0.98); }
+
+        /* ═══ TOKEN BALANCES CARD LIST ═══ */
+        .token-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .token-row {
+            background: var(--bg-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: border-color 0.2s;
+        }
+        .token-row:hover { border-color: var(--border-hover); }
+
+        .token-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .token-icon {
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(139, 92, 246, 0.2));
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 11px;
+            color: var(--cyan);
+        }
+
+        .token-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .token-network {
+            font-size: 11px;
+            color: var(--text-1);
+        }
+
+        .token-balance {
+            text-align: right;
+        }
+
+        .token-amount {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 15px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .token-symbol {
+            font-size: 11px;
+            color: var(--cyan);
+            font-weight: 700;
+        }
+
+        .section-separator {
+            height: 1px;
+            background: var(--border);
+            margin: 12px 0;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-grid"></div>
+    <div class="bg-glow blue"></div>
+    <div class="bg-glow purple"></div>
+
+    <!-- HEADER -->
+    <div class="topbar">
+        <div class="topbar-left">
+            <div class="logo-mark">M</div>
+            <div class="logo-text">MEV Protocol <span>Wallets</span></div>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link">Main Dashboard</a>
+                <a href="wallets.html" class="nav-link active">Master Wallets</a>
+                <a href="cobrowser.html" class="nav-link">Cobrowser</a>
+            </div>
+        </div>
+        <div class="topbar-right">
+            <div class="status-center">
+                <div class="status-pulse"></div>
+                <span>RPC Live Syncing</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN CONTAINER -->
+    <div class="main-container">
+
+        <!-- STATS ROW -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Native Value</div>
+                <div class="stat-value" id="totalValue">0.00 ETH</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Tracked Wallets</div>
+                <div class="stat-value" id="walletsCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Token Assets</div>
+                <div class="stat-value" id="tokensValue">0.00 Assets</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Network Status</div>
+                <div class="stat-value" style="font-size:16px;color:var(--green)">✓ All nodes active</div>
+            </div>
+        </div>
+
+        <!-- CONTENT PANELS -->
+        <div class="content-grid">
+            
+            <!-- LEFT PANEL: WALLET TABLE -->
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">Active Tracked Wallets</div>
+                    <button class="action-del-btn" id="syncBtn" onclick="triggerRefresh()" style="background:rgba(59,130,246,0.1);color:var(--blue);border-color:rgba(59,130,246,0.2)">Sync Balances</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Wallet Name</th>
+                                <th>Network</th>
+                                <th>Address</th>
+                                <th>Native Balance</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="walletsTableBody">
+                            <!-- Populated via Javascript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- RIGHT PANEL: MANAGEMENT FORMS -->
+            <div class="panel" style="gap: 24px;">
+                
+                <!-- ADD WALLET FORM -->
+                <div>
+                    <div class="panel-title" style="font-size: 16px; margin-bottom: 16px;">Add Tracked Wallet</div>
+                    <form id="addWalletForm" style="display: flex; flex-direction: column; gap: 14px;">
+                        <div class="form-group">
+                            <label for="walletName">Wallet Name / Label</label>
+                            <input type="text" id="walletName" placeholder="e.g. Arb Executor 1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="walletAddress">Wallet Address (HEX)</label>
+                            <input type="text" id="walletAddress" placeholder="0x..." required>
+                        </div>
+                        <div class="form-group">
+                            <label for="walletNetwork">Network</label>
+                            <select id="walletNetwork">
+                                <option value="arbitrum">Arbitrum One</option>
+                                <option value="ethereum">Ethereum Mainnet</option>
+                                <option value="base">Base Mainnet</option>
+                                <option value="optimism">Optimism</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="submit-btn">Register Wallet</button>
+                    </form>
+                </div>
+
+                <div class="section-separator"></div>
+
+                <!-- ADD COIN/TOKEN FORM -->
+                <div>
+                    <div class="panel-title" style="font-size: 16px; margin-bottom: 16px;">Register Custom Token</div>
+                    <form id="addTokenForm" style="display: flex; flex-direction: column; gap: 14px;">
+                        <div class="form-group">
+                            <label for="tokenName">Token Name</label>
+                            <input type="text" id="tokenName" placeholder="e.g. Arbitrum Token" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="tokenSymbol">Symbol</label>
+                            <input type="text" id="tokenSymbol" placeholder="e.g. ARB" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="tokenAddress">Contract Address</label>
+                            <input type="text" id="tokenAddress" placeholder="0x..." required>
+                        </div>
+                        <div class="form-group">
+                            <label for="tokenNetwork">Network</label>
+                            <select id="tokenNetwork">
+                                <option value="arbitrum">Arbitrum One</option>
+                                <option value="ethereum">Ethereum Mainnet</option>
+                                <option value="base">Base Mainnet</option>
+                                <option value="optimism">Optimism</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="submit-btn" style="background: linear-gradient(135deg, var(--cyan), var(--blue)); box-shadow: 0 4px 15px rgba(6,182,212,0.3);">Track Token</button>
+                    </form>
+                </div>
+
+                <div class="section-separator"></div>
+
+                <!-- TOKEN BALANCE LIST -->
+                <div>
+                    <div class="panel-title" style="font-size: 16px; margin-bottom: 16px;">Token Assets Summary</div>
+                    <div class="token-list" id="tokenListContainer">
+                        <!-- Populated via Javascript -->
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        // ═══ STATE CONFIGURATIONS ═══
+        const RPCS = {
+            arbitrum: 'https://arbitrum-one-rpc.publicnode.com',
+            ethereum: 'https://ethereum-rpc.publicnode.com',
+            base: 'https://mainnet.base.org',
+            optimism: 'https://mainnet.optimism.io'
+        };
+
+        // Seed with actual default system wallets/tokens
+        let wallets = JSON.parse(localStorage.getItem('tracked_wallets')) || [
+            { id: 'w1', name: 'Arb Sequencer Faucet', address: '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1', network: 'arbitrum', balance: '0.00' },
+            { id: 'w2', name: 'Standard EOA Faucet', address: '0x0000000000000000000000000000000000000000', network: 'arbitrum', balance: '0.00' }
+        ];
+
+        let tokens = JSON.parse(localStorage.getItem('tracked_tokens')) || [
+            { symbol: 'USDC', name: 'USD Coin', address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831', network: 'arbitrum', decimals: 6, balance: '0.00' },
+            { symbol: 'ARB', name: 'Arbitrum', address: '0x912CE59144191C1204E64559FE8253a0e49E6548', network: 'arbitrum', decimals: 18, balance: '0.00' }
+        ];
+
+        // ═══ SAVE TO LOCALSTORAGE ═══
+        function saveState() {
+            localStorage.setItem('tracked_wallets', JSON.stringify(wallets));
+            localStorage.setItem('tracked_tokens', JSON.stringify(tokens));
+            renderUI();
+        }
+
+        // ═══ COPY HELPER ═══
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text);
+            alert("Address copied: " + text);
+        }
+
+        // ═══ DELETE ACTIONS ═══
+        function removeWallet(id) {
+            wallets = wallets.filter(w => w.id !== id);
+            saveState();
+            triggerRefresh();
+        }
+
+        // ═══ RENDER VIEWS ═══
+        function renderUI() {
+            // Count headers
+            document.getElementById('walletsCount').textContent = wallets.length;
+            
+            // Wallets Table
+            const tbody = document.getElementById('walletsTableBody');
+            tbody.innerHTML = wallets.map(w => `
+                <tr>
+                    <td style="font-weight:600;color:#fff">${w.name}</td>
+                    <td><span class="network-badge ${w.network}">${w.network}</span></td>
+                    <td>
+                        <div class="wallet-addr">
+                            ${w.address.slice(0,6)}...${w.address.slice(-4)}
+                            <button class="copy-btn" onclick="copyToClipboard('${w.address}')">📋</button>
+                        </div>
+                    </td>
+                    <td><span class="balance-value ${parseFloat(w.balance) > 0 ? 'var(--green)' : ''}">${parseFloat(w.balance).toFixed(4)} ETH</span></td>
+                    <td>
+                        <button class="action-del-btn" onclick="removeWallet('${w.id}')">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            // Tokens List
+            const tokenList = document.getElementById('tokenListContainer');
+            tokenList.innerHTML = tokens.map(t => `
+                <div class="token-row">
+                    <div class="token-meta">
+                        <div class="token-icon">${t.symbol.slice(0,3)}</div>
+                        <div>
+                            <div class="token-name">${t.name}</div>
+                            <div class="token-network">${t.network.toUpperCase()}</div>
+                        </div>
+                    </div>
+                    <div class="token-balance">
+                        <div class="token-amount">${parseFloat(t.balance).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                        <div class="token-symbol">${t.symbol}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            // Total Value Calc
+            const totalETH = wallets.reduce((acc, w) => acc + parseFloat(w.balance || 0), 0);
+            document.getElementById('totalValue').textContent = totalETH.toFixed(4) + ' ETH';
+            document.getElementById('tokensValue').textContent = tokens.length + ' Tokens';
+        }
+
+        // ═══ LIVE BALANCE UPDATE ENGINE ═══
+        async function fetchNativeBalance(address, network) {
+            try {
+                const rpc = RPCS[network];
+                if (!rpc) return '0.00';
+
+                const response = await fetch(rpc, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'eth_getBalance',
+                        params: [address, 'latest'],
+                        id: 1
+                    })
+                });
+                const res = await response.json();
+                if (res.result) {
+                    const wei = BigInt(res.result);
+                    const eth = Number(wei) / 1e18;
+                    return eth.toString();
+                }
+                return '0.00';
+            } catch(e) {
+                console.error("Balance fetch error:", e);
+                return '0.00';
+            }
+        }
+
+        async function fetchERC20Balance(tokenAddress, walletAddress, network, decimals) {
+            try {
+                const rpc = RPCS[network];
+                if (!rpc) return 0;
+
+                // balanceOf(address) signature: 0x70a08231 + padded address
+                const cleanAddress = walletAddress.toLowerCase().replace('0x', '');
+                const data = '0x70a08231' + '0'.repeat(24) + cleanAddress;
+
+                const response = await fetch(rpc, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'eth_call',
+                        params: [{
+                            to: tokenAddress,
+                            data: data
+                        }, 'latest'],
+                        id: 1
+                    })
+                });
+                const res = await response.json();
+                if (res.result && res.result !== '0x') {
+                    const val = BigInt(res.result);
+                    const bal = Number(val) / Math.pow(10, decimals);
+                    return bal;
+                }
+                return 0;
+            } catch(e) {
+                console.error("ERC20 fetch error:", e);
+                return 0;
+            }
+        }
+
+        async function triggerRefresh() {
+            const syncBtn = document.getElementById('syncBtn');
+            syncBtn.textContent = 'Syncing...';
+            syncBtn.disabled = true;
+
+            // Query native balance for each wallet
+            for (let w of wallets) {
+                w.balance = await fetchNativeBalance(w.address, w.network);
+            }
+
+            // Query ERC20 balance for each token aggregated across all wallets
+            for (let t of tokens) {
+                let totalBal = 0;
+                for (let w of wallets) {
+                    if (w.network === t.network) {
+                        const bal = await fetchERC20Balance(t.address, w.address, t.network, t.decimals);
+                        totalBal += bal;
+                    }
+                }
+                t.balance = totalBal.toString();
+            }
+            
+            syncBtn.textContent = 'Sync Balances';
+            syncBtn.disabled = false;
+            saveState();
+        }
+
+        // ═══ FORM SUBMISSION HANDLERS ═══
+        document.getElementById('addWalletForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('walletName').value.trim();
+            const address = document.getElementById('walletAddress').value.trim();
+            const network = document.getElementById('walletNetwork').value;
+
+            if (!address.startsWith('0x') || address.length !== 42) {
+                alert("Invalid HEX address!");
+                return;
+            }
+
+            const id = 'w_' + Math.random().toString(36).substr(2, 9);
+            const newWallet = { id, name, address, network, balance: '0.00' };
+            wallets.push(newWallet);
+
+            document.getElementById('addWalletForm').reset();
+            saveState();
+            await triggerRefresh();
+        });
+
+        document.getElementById('addTokenForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = document.getElementById('tokenName').value.trim();
+            const symbol = document.getElementById('tokenSymbol').value.trim().toUpperCase();
+            const address = document.getElementById('tokenAddress').value.trim();
+            const network = document.getElementById('tokenNetwork').value;
+
+            if (!address.startsWith('0x') || address.length !== 42) {
+                alert("Invalid Contract HEX address!");
+                return;
+            }
+
+            tokens.push({ symbol, name, address, network, decimals: 18, balance: '0.00' });
+            document.getElementById('addTokenForm').reset();
+            saveState();
+            await triggerRefresh();
+        });
+
+        // ═══ INITIALIZATION ═══
+        renderUI();
+        triggerRefresh();
+        // Automatically sync every 30s
+        setInterval(triggerRefresh, 30000);
+    </script>
+</body>
+</html>

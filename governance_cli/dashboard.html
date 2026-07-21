@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JetWeb Policy Evolution Node Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: rgba(22, 28, 45, 0.6);
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --accent: hsl(210, 100%, 60%);
+      --accent-glow: rgba(59, 130, 246, 0.2);
+      --green: hsl(142, 70%, 50%);
+      --red: hsl(350, 80%, 60%);
+      --yellow: hsl(45, 90%, 55%);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: 'Outfit', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(147, 51, 234, 0.05) 0%, transparent 40%);
+    }
+
+    header {
+      padding: 30px 5%;
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(11, 15, 25, 0.8);
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .logo-glow {
+      width: 14px;
+      height: 14px;
+      background-color: var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 0 15px var(--accent);
+      animation: pulse 2s infinite alternate;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(to right, #fff, #93c5fd);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 40px auto;
+      padding: 0 4%;
+      display: grid;
+      grid-template-columns: 350px 1fr;
+      gap: 30px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 25px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .panel-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #93c5fd;
+    }
+
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      position: relative;
+      padding-left: 20px;
+    }
+
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 4px;
+      top: 10px;
+      bottom: 10px;
+      width: 2px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .node {
+      position: relative;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .node::before {
+      content: '';
+      position: absolute;
+      left: -20px;
+      top: 24px;
+      width: 10px;
+      height: 10px;
+      background: var(--bg);
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      z-index: 2;
+    }
+
+    .node:hover {
+      background: rgba(255, 255, 255, 0.04);
+      transform: translateX(5px);
+      border-color: var(--accent);
+    }
+
+    .node.active {
+      background: rgba(59, 130, 246, 0.1);
+      border-color: var(--accent);
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.15);
+    }
+
+    .node.active::before {
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--accent);
+    }
+
+    .node-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .version-tag {
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .timestamp {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .reason-text {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .viewer-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+    }
+
+    .diff-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .diff-box {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      font-family: monospace;
+      font-size: 13px;
+      overflow-x: auto;
+      max-height: 400px;
+    }
+
+    .diff-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+
+    .diff-line {
+      display: block;
+      line-height: 1.6;
+      padding: 2px 5px;
+      border-radius: 3px;
+    }
+
+    .diff-line.added {
+      background: rgba(16, 185, 129, 0.15);
+      color: #a7f3d0;
+    }
+
+    .diff-line.removed {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+    }
+
+    .action-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 20px;
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 0 15px var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .badge {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .badge-Sentinel {
+      background: rgba(59, 130, 246, 0.2);
+      color: #93c5fd;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .badge-risk {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+
+    .risk-low {
+      background: rgba(16, 185, 129, 0.15);
+      color: #a7f3d0;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .risk-medium {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fde68a;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .risk-high {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .risk-scorecard {
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+
+    .factor-item {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .factor-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--yellow);
+    }
+
+    @keyframes pulse {
+      from { transform: scale(0.9); opacity: 0.6; }
+      to { transform: scale(1.1); opacity: 1; }
+    }
+
+    @media (max-width: 900px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-container">
+      <div class="logo-glow"></div>
+      <h1>JetWeb Policy Evolution Monitor</h1>
+    </div>
+    <span class="badge badge-Sentinel" style="font-size:12px; padding:6px 12px;">Sovereign Organism Mode</span>
+  </header>
+
+  <div class="container">
+    <div class="card">
+      <div class="panel-title">
+        <span>History Timeline</span>
+        <span style="font-size:12px; color:var(--text-muted);">Versions</span>
+      </div>
+      <div class="timeline" id="timeline-container">
+        <!-- JS filled -->
+      </div>
+    </div>
+
+    <div class="viewer-layout">
+      <div class="card">
+        <div class="panel-title" id="active-title">
+          <span>Active Configuration View</span>
+        </div>
+
+        <div class="risk-scorecard">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span style="font-weight: 600; font-size: 14px; color: #fff;">Automated Security Risk Assessment</span>
+            <span class="badge badge-risk risk-low" id="risk-badge">Low Risk (0.0)</span>
+          </div>
+          <div id="risk-factors-list">
+            <!-- JS filled -->
+          </div>
+        </div>
+
+        <div class="diff-container">
+          <div>
+            <div class="diff-title">Current Active Policy Rules</div>
+            <pre class="diff-box" id="json-view-current">
+<!-- JS filled -->
+            </pre>
+          </div>
+          <div>
+            <div class="diff-title">Mutation Delta</div>
+            <pre class="diff-box" id="json-view-mutation">
+<!-- JS filled -->
+            </pre>
+          </div>
+        </div>
+        <div class="action-bar">
+          <span style="font-size: 13px; color: var(--text-muted);">Rollbacks trigger real-time hot-reloads across daemon instances.</span>
+          <button class="btn btn-primary" onclick="triggerRollback()">Rollback Swarm Node to This Version</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Local mock data reflecting simulation timeline with calculated risk variables
+    const mockVersions = [
+      {
+        version: "1",
+        lineage_rules: {
+          Analyst: ["corridor.east", "corridor.west"],
+          Sentinel: ["corridor.east", "corridor.west"]
+        },
+        reason: "Genesis sovereign swarm setup",
+        timestamp: "2026-07-15 16:31:50",
+        risk: 0.0,
+        factors: []
+      },
+      {
+        version: "2",
+        lineage_rules: {
+          Analyst: ["corridor.east", "corridor.west"],
+          Sentinel: ["corridor.east", "corridor.west", "corridor.new_horizon"]
+        },
+        reason: "Propose add new horizon corridor authorization for Sentinels",
+        timestamp: "2026-07-15 16:31:55",
+        risk: 0.2,
+        factors: ["added lineage authorization 'corridor.new_horizon' for role: Sentinel"]
+      },
+      {
+        version: "3",
+        lineage_rules: {
+          Analyst: ["corridor.east", "corridor.west"],
+          Sentinel: ["corridor.east", "corridor.west", "corridor.new_horizon", "corridor.central"]
+        },
+        reason: "Dynamic expansion of core corridor.central routes and elevated admin capabilities",
+        timestamp: "2026-07-15 16:32:00",
+        risk: 0.7,
+        factors: [
+          "added lineage authorization 'corridor.central' for role: Sentinel",
+          "elevated administrative capability 'governance.mutate.policy' granted to role: Analyst"
+        ]
+      }
+    ];
+
+    let currentSelection = "3";
+
+    function renderTimeline() {
+      const container = document.getElementById("timeline-container");
+      container.innerHTML = "";
+
+      [...mockVersions].reverse().forEach(v => {
+        const div = document.createElement("div");
+        div.className = `node ${v.version === currentSelection ? 'active' : ''}`;
+        div.onclick = () => selectVersion(v.version);
+
+        let rClass = "risk-low";
+        if (v.risk > 0.5) rClass = "risk-high";
+        else if (v.risk > 0.1) rClass = "risk-medium";
+
+        div.innerHTML = `
+          <div class="node-header">
+            <span class="version-tag">Version ${v.version}</span>
+            <span class="timestamp">${v.timestamp.split(" ")[1]}</span>
+          </div>
+          <p class="reason-text" style="margin-bottom:8px;">${v.reason}</p>
+          <span class="badge badge-risk ${rClass}" style="font-size:9px; padding:2px 6px;">Risk: ${v.risk}</span>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function selectVersion(ver) {
+      currentSelection = ver;
+      renderTimeline();
+
+      const selected = mockVersions.find(v => v.version === ver);
+      const prev = mockVersions.find(v => parseInt(v.version) === parseInt(ver) - 1) || mockVersions[0];
+
+      document.getElementById("active-title").innerHTML = `<span>Configuration Detail: Version ${ver}</span>`;
+      
+      // Update risk scorecard
+      const rBadge = document.getElementById("risk-badge");
+      rBadge.className = `badge badge-risk ${selected.risk > 0.5 ? 'risk-high' : (selected.risk > 0.1 ? 'risk-medium' : 'risk-low')}`;
+      rBadge.textContent = selected.risk > 0.5 ? `High Risk (${selected.risk})` : (selected.risk > 0.1 ? `Medium Risk (${selected.risk})` : `Low Risk (${selected.risk})`);
+
+      const factorsList = document.getElementById("risk-factors-list");
+      factorsList.innerHTML = "";
+      if (selected.factors.length === 0) {
+        factorsList.innerHTML = `<div class="factor-item" style="color:var(--text-muted);">No elevated risks detected. Policy compliant.</div>`;
+      } else {
+        selected.factors.forEach(f => {
+          factorsList.innerHTML += `<div class="factor-item"><div class="factor-dot"></div>${f}</div>`;
+        });
+      }
+
+      // Render active policy box
+      document.getElementById("json-view-current").innerHTML = JSON.stringify(selected.lineage_rules, null, 2);
+
+      // Render diff box with code coloration
+      const deltaContainer = document.getElementById("json-view-mutation");
+      deltaContainer.innerHTML = "";
+
+      if (ver === "1") {
+        deltaContainer.innerHTML = `<span class="diff-line added">+ Genesis configuration initialized.</span>`;
+        return;
+      }
+
+      const addedLines = [];
+      const removedLines = [];
+
+      for (const role in selected.lineage_rules) {
+        const currLineages = selected.lineage_rules[role];
+        const prevLineages = prev.lineage_rules[role] || [];
+
+        currLineages.forEach(ln => {
+          if (!prevLineages.includes(ln)) {
+            addedLines.push(`  + ${role}: "${ln}" (Added Lineage Rule)`);
+          }
+        });
+
+        prevLineages.forEach(ln => {
+          if (!currLineages.includes(ln)) {
+            removedLines.push(`  - ${role}: "${ln}" (Removed Lineage Rule)`);
+          }
+        });
+      }
+
+      let diffMarkup = "";
+      removedLines.forEach(ln => {
+        diffMarkup += `<span class="diff-line removed">${ln}</span>`;
+      });
+      addedLines.forEach(ln => {
+        diffMarkup += `<span class="diff-line added">${ln}</span>`;
+      });
+
+      if (diffMarkup === "") {
+        diffMarkup = `<span class="diff-line" style="color:var(--text-muted);">No modifications detected.</span>`;
+      }
+      deltaContainer.innerHTML = diffMarkup;
+    }
+
+    function triggerRollback() {
+      alert(`Initiating dynamic rollback RPC command:\n./governance_cli rollback -version ${currentSelection}\n\nAll running daemon threads will hot-reload immediately.`);
+    }
+
+    // Init
+    renderTimeline();
+    selectVersion("3");
+  </script>
+</body>
+</html>

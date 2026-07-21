@@ -1,0 +1,80 @@
+{
+  "profiles": [
+    {
+      "name": "manual_order_entry",
+      "rules": [
+        {
+          "scope": {
+            "symbols": ["*"],
+            "event_types": ["ORDER_SUBMITTED"]
+          },
+          "base_distribution": {
+            "type": "normal",
+            "mean_ms": 3200,
+            "std_ms": 800,
+            "min_ms": 1800,
+            "max_ms": 6000
+          },
+          "modifiers": []
+        }
+      ]
+    },
+    {
+      "name": "web_scrape",
+      "rules": [
+        {
+          "scope": {
+            "symbols": ["*"],
+            "event_types": ["SCRAPE"]
+          },
+          "base_distribution": {
+            "type": "normal",
+            "mean_ms": 750,
+            "std_ms": 200,
+            "min_ms": 400,
+            "max_ms": 1500
+          },
+          "modifiers": []
+        }
+      ]
+    },
+    {
+      "name": "retail_api_order",
+      "rules": [
+        {
+          "scope": {
+            "symbols": ["*"],
+            "event_types": ["ORDER_SUBMITTED", "ORDER_FILLED"]
+          },
+          "base_distribution": {
+            "type": "normal",
+            "mean_ms": 350,
+            "std_ms": 100,
+            "min_ms": 150,
+            "max_ms": 800
+          },
+          "modifiers": [
+            {
+              "type": "by_load",
+              "metric": "orders_per_second",
+              "thresholds": [
+                {
+                  "max": 10,
+                  "delta_ms": 0
+                },
+                {
+                  "max": 50,
+                  "delta_ms": 50
+                },
+                {
+                  "max": 200,
+                  "delta_ms": 150
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -695,6 +695,10 @@
                     <span class="hud-label">Options Buying Power</span>
                     <span class="hud-val" id="bpValue">$114,995.70</span>
                 </div>
+                <div class="hud-item">
+                    <span class="hud-label">Consensus Leverage</span>
+                    <span class="hud-val" id="leverageValue">0.00 / 3.00</span>
+                </div>
             </div>
         </div>
         <div class="header-right">
@@ -735,6 +739,9 @@
                 <button class="tab-button active" onclick="switchTab('charts-tab')">Charts</button>
                 <button class="tab-button" onclick="switchTab('options-tab')">Option Chain</button>
                 <button class="tab-button" onclick="switchTab('mempool-tab')">Mempool Logs</button>
+                <button class="tab-button" onclick="switchTab('lineage-tab')">Lineage History</button>
+                <button class="tab-button" onclick="switchTab('temporal-tab')">Temporal Memory</button>
+                <button class="tab-button" onclick="switchTab('gov-tab')">Temporal Governance</button>
             </div>
 
             <div class="main-content">
@@ -781,6 +788,94 @@
                 <div class="tab-content" id="mempool-tab">
                     <div class="log-terminal" id="logTerminal">
                         <!-- Streaming logs -->
+                    </div>
+                </div>
+
+                <!-- Lineage History Tab -->
+                <div class="tab-content" id="lineage-tab">
+                    <div class="options-card">
+                        <div class="options-header">Temporal Trading Lineage</div>
+                        <table class="options-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Symbol</th>
+                                    <th>Qty</th>
+                                    <th>Kind</th>
+                                    <th>Verdict</th>
+                                    <th>Rationale</th>
+                                    <th>Lineage ID</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lineageHistoryBody">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                <!-- Temporal Memory Tab -->
+                <div class="tab-content" id="temporal-tab">
+                    <div class="options-card">
+                        <div class="options-header">Temporal Introspection Substrate</div>
+                        
+                        <!-- Time travel slider control -->
+                        <div style="margin: 15px; padding: 15px; background: var(--bg-card); border: 1px solid var(--border-neon); border-radius: 4px;">
+                            <label style="display:block; margin-bottom: 8px; font-weight: 700; color: var(--neon-yellow);">Time-Travel Epoch Slider:</label>
+                            <input type="range" id="temporalRange" min="0" max="0" value="0" style="width: 100%; accent-color: var(--neon-cyan);" oninput="onTimeTravelSliderChange(this.value)">
+                            <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 11px; margin-top: 6px;">
+                                <span id="timeTravelSelectedTime">Epoch: Genesis</span>
+                                <span id="timeTravelSelectedHash">Hash: genesis</span>
+                            </div>
+                        </div>
+
+                        <!-- Diff Viewer panel -->
+                        <div style="margin: 15px; padding: 15px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); border-radius: 4px; display: flex; flex-direction: column; gap: 8px;">
+                            <div style="font-weight:700; color: var(--neon-cyan);">Snapshot State Comparison:</div>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <select id="diffFromSelect" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color); padding: 4px;"></select>
+                                <span>to</span>
+                                <select id="diffToSelect" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color); padding: 4px;"></select>
+                                <button class="btn-liq" style="padding: 4px 12px;" onclick="compareSnapshots()">Compare</button>
+                            </div>
+                            <div id="diffResults" style="font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); white-space: pre-wrap; margin-top: 8px;">
+                                Select snapshots and click compare to run temporal diff...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Temporal Governance Tab -->
+                <div class="tab-content" id="gov-tab">
+                    <div class="options-card">
+                        <div class="options-header">Temporal Constitutional Governance</div>
+                        <div style="padding: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 12px; border-radius: 4px;">
+                                <h3 style="color: var(--neon-cyan); margin-top: 0; font-size: 14px;">Active Constraints</h3>
+                                <ul style="margin: 0; padding-left: 20px; font-size: 12px; line-height: 1.6; color: var(--text-primary);">
+                                    <li>Max Exposure Drift: <strong style="color: var(--neon-yellow);">15%</strong> (Window: 5 epochs)</li>
+                                    <li>Leverage Oscillation Limit: <strong style="color: var(--neon-yellow);">0.50 ΔL</strong> (Window: 5 epochs)</li>
+                                    <li>Risk Delta Stability: <strong style="color: var(--neon-yellow);">0.10 Max Δ</strong> (Window: 5 epochs)</li>
+                                    <li>Cash Floor Persistence: <strong style="color: var(--neon-yellow);">3 epochs Max</strong></li>
+                                </ul>
+                            </div>
+                            <div style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 12px; border-radius: 4px;">
+                                <h3 style="color: var(--neon-cyan); margin-top: 0; font-size: 14px;">Organism Self-Correction Proposals</h3>
+                                <div style="max-height: 150px; overflow-y: auto;">
+                                    <table class="options-table" style="font-size: 11px;">
+                                        <thead>
+                                            <tr>
+                                                <th>Epoch ID</th>
+                                                <th>Action</th>
+                                                <th>Verdict</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="govProposalsBody">
+                                            <tr>
+                                                <td colspan="3" style="text-align: center; color: var(--text-secondary);">No violations detected</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -877,9 +972,9 @@
             renderConsensusNodes();
             resizeCanvas();
             fetchData();
+            initRealtimeSSE();
             
             // Periodics
-            setInterval(fetchData, 1000);
             setInterval(streamMockLogs, 2500);
             setInterval(randomizeConsensus, 5000);
         }
@@ -967,57 +1062,237 @@
         function randomizeConsensus() {
             const statuses = ["approve", "reject", "pending", "abstain"];
             nodesState["copilot"] = statuses[Math.floor(Math.random() * 4)];
-            nodesState["antigravity"] = statuses[Math.floor(Math.random() * 3)]; // limit abstain for antigravity
+            nodesState["antigravity"] = statuses[Math.floor(Math.random() * 3)];
             renderConsensusNodes();
         }
 
-        // Fetch portfolio/positions
+        function renderPortfolioData(data) {
+            let positionsVal = 0;
+            const tbody = document.getElementById("holdingsBody");
+            tbody.innerHTML = "";
+            
+            if (data.positions && data.positions.length > 0) {
+                data.positions.forEach(pos => {
+                    const currentVal = pos.qty * pos.cost_basis;
+                    positionsVal += currentVal;
+                    
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td style="font-weight:700; color:var(--neon-yellow);">${pos.symbol}</td>
+                        <td>${pos.qty}</td>
+                        <td>$${pos.cost_basis.toFixed(2)}</td>
+                        <td class="text-up">+$0.00</td>
+                        <td><button class="btn-liq" onclick="liquidateSymbol('${pos.symbol}', ${pos.qty})">Close</button></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+            
+            const netLiq = data.cash + positionsVal;
+            document.getElementById("netLiqValue").innerText = `$${netLiq.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            document.getElementById("cashValue").innerText = `$${data.cash.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            document.getElementById("bpValue").innerText = `$${data.cash.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            if (data.risk_profile) {
+                document.getElementById("leverageValue").innerText = `${data.risk_profile.current_leverage.toFixed(2)} / ${data.risk_profile.max_leverage.toFixed(2)}`;
+            }
+        }
+
+        function renderLineageEntry(entry) {
+            const histTbody = document.getElementById("lineageHistoryBody");
+            
+            // Avoid duplicate rows
+            if (document.getElementById(`row-${entry.lineage_id}`)) return;
+
+            const tr = document.createElement("tr");
+            tr.id = `row-${entry.lineage_id}`;
+            const approvedStr = entry.verdict.approved ? "Approved" : "Rejected";
+            const approvedClass = entry.verdict.approved ? "text-up" : "text-down";
+            
+            tr.innerHTML = `
+                <td>${new Date(entry.timestamp).toLocaleTimeString()}</td>
+                <td style="font-weight:700; color:var(--neon-yellow);">${entry.mutation.symbol}</td>
+                <td>${entry.mutation.qty}</td>
+                <td>${entry.mutation.kind}</td>
+                <td class="${approvedClass}">${approvedStr}</td>
+                <td>${entry.verdict.rationale}</td>
+                <td style="font-family:var(--font-mono); font-size:10px;">${entry.lineage_id}</td>
+            `;
+            
+            if (histTbody.firstChild) {
+                histTbody.insertBefore(tr, histTbody.firstChild);
+            } else {
+                histTbody.appendChild(tr);
+            }
+        }
+
+        let timelineSnapshots = [];
+
+        async function fetchTimeline() {
+            try {
+                const res = await fetch("/api/portfolio/timeline");
+                if (res.ok) {
+                    timelineSnapshots = await res.json();
+                    updateTimeTravelSlider();
+                    updateDiffSelects();
+                }
+            } catch (err) {
+                console.error("Timeline error:", err);
+            }
+        }
+
+        function updateTimeTravelSlider() {
+            const slider = document.getElementById("temporalRange");
+            if (!slider || timelineSnapshots.length === 0) return;
+            slider.max = timelineSnapshots.length - 1;
+        }
+
+        function updateDiffSelects() {
+            const fromSelect = document.getElementById("diffFromSelect");
+            const toSelect = document.getElementById("diffToSelect");
+            if (!fromSelect || !toSelect) return;
+            
+            const currentFromVal = fromSelect.value;
+            const currentToVal = toSelect.value;
+
+            fromSelect.innerHTML = "";
+            toSelect.innerHTML = "";
+
+            timelineSnapshots.forEach(snap => {
+                const opt1 = document.createElement("option");
+                opt1.value = snap.lineage_id;
+                opt1.textContent = `${snap.lineage_id} (${new Date(snap.timestamp).toLocaleTimeString()})`;
+                fromSelect.appendChild(opt1);
+
+                const opt2 = document.createElement("option");
+                opt2.value = snap.lineage_id;
+                opt2.textContent = `${snap.lineage_id} (${new Date(snap.timestamp).toLocaleTimeString()})`;
+                toSelect.appendChild(opt2);
+            });
+
+            if (currentFromVal) fromSelect.value = currentFromVal;
+            if (currentToVal) toSelect.value = currentToVal;
+        }
+
+        async function onTimeTravelSliderChange(index) {
+            const snap = timelineSnapshots[index];
+            if (!snap) return;
+
+            document.getElementById("timeTravelSelectedTime").innerText = `Epoch: ${new Date(snap.timestamp).toLocaleTimeString()}`;
+            document.getElementById("timeTravelSelectedHash").innerText = `Hash: ${snap.lineage_id}`;
+
+            // Preview the historical portfolio state
+            renderPortfolioData(snap.portfolio);
+        }
+
+        async function compareSnapshots() {
+            const from = document.getElementById("diffFromSelect").value;
+            const to = document.getElementById("diffToSelect").value;
+            const diffResults = document.getElementById("diffResults");
+
+            if (!from || !to) {
+                diffResults.textContent = "Please select both from/to snapshots.";
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/portfolio/diff?from=${from}&to=${to}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    let output = `=== Epoch Diff [${from} => ${to}] ===\n`;
+                    output += `Cash Delta: ${data.cash_diff >= 0 ? '+' : ''}$${data.cash_diff.toFixed(2)}\n`;
+                    output += `Position Deltas:\n`;
+                    if (data.position_diffs && data.position_diffs.length > 0) {
+                        data.position_diffs.forEach(d => {
+                            output += `  - ${d.symbol}: Qty Delta: ${d.qty_diff >= 0 ? '+' : ''}${d.qty_diff}, Cost Basis Delta: ${d.cost_diff >= 0 ? '+' : ''}$${d.cost_diff.toFixed(2)}\n`;
+                        });
+                    } else {
+                        output += "  No position adjustments in this range.";
+                    }
+                    diffResults.textContent = output;
+                } else {
+                    diffResults.textContent = "Failed to load snapshot delta.";
+                }
+            } catch (err) {
+                diffResults.textContent = `Error comparing: ${err}`;
+            }
+        }
+
+        function renderGovProposal(entry) {
+            const tbody = document.getElementById("govProposalsBody");
+            if (tbody.rows.length === 1 && tbody.rows[0].cells.length === 1) {
+                tbody.innerHTML = "";
+            }
+            
+            if (document.getElementById(`gov-${entry.lineage_id}`)) return;
+
+            const tr = document.createElement("tr");
+            tr.id = `gov-${entry.lineage_id}`;
+            const actionStr = entry.mutation.kind === "cash_adjust" ? `Cash: $${entry.mutation.amount}` : `${entry.mutation.kind} ${entry.mutation.symbol} Qty: ${entry.mutation.qty}`;
+            
+            tr.innerHTML = `
+                <td style="font-family:var(--font-mono); font-size:10px;">${entry.lineage_id}</td>
+                <td>${actionStr}</td>
+                <td><span class="text-up">Evaluated</span></td>
+            `;
+            tbody.insertBefore(tr, tbody.firstChild);
+        }
+
+        function initRealtimeSSE() {
+            const evtSource = new EventSource("/api/events");
+            
+            evtSource.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    
+                    if (data.type === "verdict") {
+                        console.log("Real-time trade verdict:", data);
+                        randomizeConsensus();
+                    } else if (data.type === "portfolio") {
+                        renderPortfolioData(data.state);
+                        fetchTimeline();
+                    } else if (data.type === "lineage") {
+                        renderLineageEntry(data.entry);
+                        fetchTimeline();
+                        if (data.entry.lineage_id.startsWith("gov-") || data.entry.lineage_id.startsWith("motor-")) {
+                            renderGovProposal(data.entry);
+                        }
+                    }
+                } catch (err) {
+                    console.error("SSE parse error:", err);
+                }
+            };
+            
+            evtSource.onerror = () => {
+                console.warn("SSE connection lost. Retrying connection...");
+            };
+        }
+
+        // Fetch portfolio/positions initial load
         async function fetchData() {
             try {
-                // Fetch summary
-                const sumRes = await fetch(`${API_BASE}/accounts/summary`);
-                if (sumRes.ok) {
-                    const sum = await sumRes.json();
-                    document.getElementById("netLiqValue").innerText = `$${sum.account_net_worth.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-                    document.getElementById("cashValue").innerText = `$${sum.cash_balance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-                    document.getElementById("bpValue").innerText = `$${sum.cash_balance.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
-                    
-                    const changePct = sum.day_change_percent || 0;
-                    const changeVal = changePct * sum.account_net_worth * 0.01;
-                    const plSign = changeVal >= 0 ? "+" : "";
-                    const plClass = changeVal >= 0 ? "up" : "down";
-                    
-                    const pnlLabel = document.getElementById("dayGainValue");
-                    pnlLabel.innerText = `${plSign}$${Math.abs(changeVal).toLocaleString(undefined, {minimumFractionDigits: 2})} (${plSign}${changePct.toFixed(2)}%)`;
-                    pnlLabel.className = `hud-val ${plClass}`;
+                const res = await fetch("/api/portfolio/current");
+                if (res.ok) {
+                    const data = await res.json();
+                    renderPortfolioData(data);
                 }
-                
-                // Fetch positions
-                const posRes = await fetch(`${API_BASE}/accounts/positions`);
-                if (posRes.ok) {
-                    const positions = await posRes.json();
-                    const tbody = document.getElementById("holdingsBody");
-                    tbody.innerHTML = "";
-                    
-                    positions.forEach(pos => {
-                        const tr = document.createElement("tr");
-                        const pnl = pos.unrealized_pl || 0;
-                        const plClass = pnl >= 0 ? "text-up" : "text-down";
-                        const plSign = pnl >= 0 ? "+" : "";
-                        const costPerShare = pos.cost_basis / pos.quantity;
 
-                        tr.innerHTML = `
-                            <td style="font-weight:700; color:var(--neon-yellow);">${pos.symbol}</td>
-                            <td>${pos.quantity}</td>
-                            <td>$${costPerShare.toFixed(2)}</td>
-                            <td class="${plClass}">${plSign}$${pnl.toFixed(2)}</td>
-                            <td><button class="btn-liq" onclick="liquidateSymbol('${pos.symbol}', ${pos.quantity})">Close</button></td>
-                        `;
-                        tbody.appendChild(tr);
-                    });
+                // Fetch trade history lineage initial load
+                const histRes = await fetch("/api/lineage/trades");
+                if (histRes.ok) {
+                    const history = await histRes.json();
+                    const histTbody = document.getElementById("lineageHistoryBody");
+                    histTbody.innerHTML = "";
+                    
+                    // Display chronological order (older first in backend list, prepending reverses it)
+                    for (let i = history.length - 1; i >= 0; i--) {
+                        renderLineageEntry(history[i]);
+                    }
                 }
+
+                // Initial timeline populate
+                fetchTimeline();
             } catch (e) {
-                // Quiet fallback if API is not active yet
+                // Quiet fallback
             }
         }
 
@@ -1180,22 +1455,25 @@
             const payload = {
                 symbol: sym,
                 qty: qty,
-                action: activeAction,
-                type: type,
-                limit_price: type === "LIMIT" ? limitVal : undefined
+                cost_basis: type === "LIMIT" ? limitVal : activePrice,
+                kind: activeAction === "BUY" ? "portfolio_add" : "portfolio_remove"
             };
 
             try {
-                const res = await fetch(`${API_BASE}/orders/place`, {
+                const res = await fetch("/api/trader/execute", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(payload)
                 });
                 const data = await res.json();
-                alert(data.message || data.error);
+                if (data.approved) {
+                    alert(`Trade Approved!\nLineage ID: ${data.lineage_id}\nVerdict: ${data.rationale}`);
+                } else {
+                    alert(`Trade Denied!\nRationale: ${data.rationale}`);
+                }
                 fetchData();
             } catch (err) {
-                alert("Failed to submit order to Schwab Mock Server. Verify it is running on port 8085.");
+                alert("Failed to submit order to Constitutional Trader Engine.");
             }
         }
 

@@ -1,0 +1,6 @@
+time_machine_root: "TIME_MACHINE"
+stooq_db_path: "data/stooq.db"
+alpaca_base_url: "https://paper-api.alpaca.markets"
+alpaca_api_key_id: "YOUR_ALPACA_API_KEY"
+alpaca_api_secret: "YOUR_ALPACA_API_SECRET"
+mode: "paper"

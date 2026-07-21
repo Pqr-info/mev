@@ -1,0 +1,14 @@
+{
+  "version": "2",
+  "lineage_rules": {
+    "Analyst": [
+      "corridor.east",
+      "corridor.west"
+    ],
+    "Sentinel": [
+      "corridor.east",
+      "corridor.west",
+      "corridor.new_horizon"
+    ]
+  }
+}

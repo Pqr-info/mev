@@ -1,0 +1,11 @@
+flask
+websockets
+pandas
+numpy
+alpaca-trade-api
+pyyaml
+torch
+onnxruntime
+psutil
+requests
+python-dotenv

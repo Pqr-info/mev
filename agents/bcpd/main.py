@@ -598,6 +598,7 @@ COOLDOWNS = {}
 def drift_detection_tick(state):
     global COOLDOWNS
     lineage = state.get("lineage", [])
+    intents = state.get("intents", [])
     if not lineage:
         return
 
@@ -617,6 +618,30 @@ def drift_detection_tick(state):
         if full_key in COOLDOWNS and now < COOLDOWNS[full_key]:
             continue
 
+        # Look up forecast oscillation probability
+        oscillation_prob = 0.5
+        forecasts = [
+            i for i in intents
+            if i.get("kind") == "forecast"
+            and i.get("status") == "done"
+            and i.get("payload", {}).get("dotted_key") == full_key.split("::", 1)[1] # Match key
+        ]
+        if forecasts:
+            forecasts.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+            result = forecasts[0].get("payload", {}).get("result") or {}
+            oscillation_prob = float(result.get("oscillation_probability", 0.5))
+
+        # Adjust sensitivity and cooldown dynamically
+        sensitivity = 3
+        cooldown_duration = 300 # Default 5 mins
+
+        if oscillation_prob >= 0.75:
+            sensitivity = 2 # Higher sensitivity (fewer mutations needed to flag)
+            cooldown_duration = 120 # Shorter cooldown (respond quickly to persistent instability)
+        elif oscillation_prob < 0.30:
+            sensitivity = 4 # Lower sensitivity
+            cooldown_duration = 600 # Longer cooldown (low risk of immediate drift)
+
         recent_events = []
         for event in events:
             ts = event.get("timestamp")
@@ -629,7 +654,7 @@ def drift_detection_tick(state):
             except Exception:
                 pass
 
-        if len(recent_events) >= 3:
+        if len(recent_events) >= sensitivity:
             history_str = "\n".join([
                 f"- Time: {e.get('timestamp')}, Proposer: {e.get('proposer')}, Value: {e.get('mutation', {}).get('prev_value')} -> {e.get('mutation', {}).get('new_value')}"
                 for e in recent_events
@@ -667,7 +692,7 @@ You must respond in JSON format matching the following schema exactly:
                     analysis = json.loads(output_text.strip())
                     if analysis.get("unstable") is True and analysis.get("recommended_value") is not None:
                         recommended_value = analysis.get("recommended_value")
-                        COOLDOWNS[full_key] = now + 300 # 5 minute cooldown
+                        COOLDOWNS[full_key] = now + cooldown_duration
                         
                         proposal_id = f"prop-drift-{uuid.uuid4().hex[:6]}"
                         intent_id = f"intent-prop-{uuid.uuid4().hex[:6]}"

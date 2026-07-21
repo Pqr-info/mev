@@ -1,0 +1,2051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alpaca Auto-Trader HUD</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
+        :root {
+            --bg-deep: #03070c;
+            --bg-panel: rgba(9, 15, 24, 0.7);
+            --border: rgba(59, 130, 246, 0.15);
+            --border-glow: rgba(59, 130, 246, 0.35);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #475569;
+            --blue: #3b82f6;
+            --purple: #a855f7;
+            --cyan: #06b6d4;
+            --green: #10b981;
+            --red: #ef4444;
+            --orange: #f59e0b;
+            --font-mono: 'JetBrains Mono', monospace;
+            --font-sans: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Cyber Grid Background */
+        .bg-grid {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image:
+                linear-gradient(rgba(59, 130, 246, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59, 130, 246, 0.02) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: -2;
+        }
+
+        /* Glowing Orbs */
+        .glow-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(140px);
+            opacity: 0.12;
+            pointer-events: none;
+            z-index: -1;
+        }
+        .glow-orb.blue {
+            width: 600px; height: 600px;
+            background: var(--blue);
+            top: -200px; right: -100px;
+        }
+        .glow-orb.purple {
+            width: 500px; height: 500px;
+            background: var(--purple);
+            bottom: -150px; left: -100px;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 32px;
+            background: rgba(6, 10, 17, 0.8);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            z-index: 10;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo {
+            width: 38px; height: 38px;
+            background: linear-gradient(135deg, var(--blue), var(--cyan));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 16px;
+            color: #fff;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .title h1 {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .title p {
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+        }
+
+        .status-container {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .badge {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: 1px solid currentColor;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .badge-live {
+            color: var(--orange);
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        .badge-paper {
+            color: var(--cyan);
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        .badge-sim {
+            color: var(--purple);
+            background: rgba(168, 85, 247, 0.1);
+        }
+
+        .conn-status {
+            font-size: 12px;
+            font-family: var(--font-mono);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .indicator {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--red);
+            box-shadow: 0 0 10px var(--red);
+            display: inline-block;
+        }
+
+        .indicator.active {
+            background: var(--green);
+            box-shadow: 0 0 10px var(--green);
+            animation: pulse 1.5s infinite;
+        }
+
+        /* Layout Grid */
+        .container {
+            display: grid;
+            grid-template-columns: 350px 1fr 380px;
+            gap: 20px;
+            padding: 24px;
+            flex: 1;
+            max-width: 1800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* Panels */
+        .panel {
+            background: var(--bg-panel);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .panel:hover {
+            border-color: var(--border-glow);
+            box-shadow: 0 4px 30px rgba(59, 130, 246, 0.08);
+        }
+
+        .panel-title {
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        /* Settings Form */
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            font-family: var(--font-mono);
+        }
+
+        .form-control {
+            width: 100%;
+            background: rgba(6, 10, 17, 0.8);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 12px;
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: 13px;
+            transition: all 0.2s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--cyan);
+            box-shadow: 0 0 8px rgba(6, 182, 212, 0.25);
+        }
+
+        .row-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        /* Action Buttons */
+        .btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: var(--font-sans);
+            border: none;
+            margin-top: 10px;
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, var(--green), #059669);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-start:hover {
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .btn-stop {
+            background: linear-gradient(135deg, var(--red), #dc2626);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-stop:hover {
+            box-shadow: 0 4px 20px rgba(239, 68, 68, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .btn-save {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--blue);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            margin-top: 15px;
+        }
+
+        .btn-save:hover {
+            background: rgba(59, 130, 246, 0.2);
+        }
+
+        /* HUD Account Stats */
+        .hud-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .hud-card {
+            background: rgba(6, 10, 17, 0.6);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .hud-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+            margin-bottom: 4px;
+        }
+
+        .hud-val {
+            font-size: 16px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+        }
+
+        /* Positions & Orders Tables */
+        .table-container {
+            flex: 1;
+            overflow-y: auto;
+            max-height: 280px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            text-align: left;
+        }
+
+        th {
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            font-size: 10px;
+            color: var(--text-secondary);
+            padding: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 10px 8px;
+            border-bottom: 1px dashed rgba(59, 130, 246, 0.1);
+            font-family: var(--font-mono);
+        }
+
+        tr:hover td {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .text-green { color: var(--green); }
+        .text-red { color: var(--red); }
+        .text-blue { color: var(--blue); }
+
+        /* Chart Area */
+        .chart-wrapper {
+            flex: 1;
+            min-height: 350px;
+            position: relative;
+            background: rgba(6, 10, 17, 0.85);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .chart-legend {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            display: flex;
+            gap: 14px;
+            background: rgba(0, 0, 0, 0.65);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-family: var(--font-mono);
+            border: 1px solid var(--border);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-color {
+            width: 12px; height: 3px;
+        }
+
+        /* Order Book Depth Ladder */
+        .orderbook-ladder {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        .ladder-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            padding: 4px 8px;
+            border-radius: 4px;
+            text-align: right;
+        }
+        .ladder-row:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .ladder-ask {
+            color: var(--red);
+            background: rgba(239, 68, 68, 0.05);
+        }
+        .ladder-bid {
+            color: var(--green);
+            background: rgba(16, 185, 129, 0.05);
+        }
+        .ladder-spread {
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+            padding: 6px 0;
+            margin: 4px 0;
+        }
+
+        /* Terminal Console */
+        .console-panel {
+            height: 220px;
+        }
+
+        .console-logs {
+            flex: 1;
+            background: #020408;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            overflow-y: auto;
+            color: #d1d5db;
+        }
+
+        .log-entry {
+            margin-bottom: 6px;
+            line-height: 1.4;
+            display: flex;
+            gap: 8px;
+        }
+
+        .log-ts {
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        .log-tag {
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .tag-sys { color: var(--purple); }
+        .tag-algo { color: var(--cyan); }
+        .tag-trade { color: var(--green); }
+        .tag-err { color: var(--red); }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; box-shadow: 0 0 5px var(--green); }
+            50% { opacity: 1; box-shadow: 0 0 15px var(--green); }
+            100% { opacity: 0.6; box-shadow: 0 0 5px var(--green); }
+        }
+
+        /* Full Width Ledger Panel */
+        .ledger-panel {
+            grid-column: span 3;
+            margin-top: 10px;
+        }
+
+        .hash-badge {
+            background: rgba(168, 85, 247, 0.1);
+            color: var(--purple);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 10px;
+            cursor: help;
+        }
+
+        @media(max-width: 1400px) {
+            .container {
+                grid-template-columns: 320px 1fr;
+            }
+            .panel-orders {
+                grid-column: span 2;
+            }
+            .ledger-panel {
+                grid-column: span 2;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="glow-orb blue"></div>
+    <div class="glow-orb purple"></div>
+
+    <header>
+        <div class="brand">
+            <div class="logo">A</div>
+            <div class="title">
+                <h1>Alpaca Auto-Trader HUD</h1>
+                <p>v1.2.0 // DETERMINISTIC BLOCK LEDGER ENGINE</p>
+            </div>
+        </div>
+        <div class="status-container">
+            <div id="modeBadge" class="badge badge-sim">Simulated</div>
+            <div class="conn-status">
+                <span id="connIndicator" class="indicator"></span>
+                <span id="connText">Connecting...</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- LEFT: Control & HUD -->
+        <div style="display: flex; flex-direction: column; gap: 20px;">
+            <!-- Configuration Panel -->
+            <div class="panel">
+                <div class="panel-title">Algorithm Config</div>
+                
+                <div class="form-group">
+                    <label>Trading Strategy</label>
+                    <select id="cfgStrategy" class="form-control">
+                        <option value="ema">EMA Crossover</option>
+                        <option value="sniper">Market Sniper (Whale Watcher)</option>
+                        <option value="sovereign">Sovereign Sniper (Mortal Logic)</option>
+                    </select>
+                </div>
+
+                <!-- Strategy: EMA Params -->
+                <div id="emaParams">
+                    <div class="form-group">
+                        <label>Trading Symbol</label>
+                        <input type="text" id="cfgSymbol" class="form-control" value="AAPL">
+                    </div>
+
+                    <div class="row-grid">
+                        <div class="form-group">
+                            <label>Short EMA Period</label>
+                            <input type="number" id="cfgShortEma" class="form-control" value="5" min="2">
+                        </div>
+                        <div class="form-group">
+                            <label>Long EMA Period</label>
+                            <input type="number" id="cfgLongEma" class="form-control" value="12" min="3">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Strategy: Sniper/Whale Watcher Params -->
+                <div id="sniperParams" style="display: none;">
+                    <div class="row-grid">
+                        <div class="form-group">
+                            <label>Asset A (Overvalued)</label>
+                            <input type="text" id="cfgAssetA" class="form-control" value="AAPL">
+                        </div>
+                        <div class="form-group">
+                            <label>Asset B (Undervalued)</label>
+                            <input type="text" id="cfgAssetB" class="form-control" value="MSFT">
+                        </div>
+                    </div>
+
+                    <div class="row-grid">
+                        <div class="form-group">
+                            <label>Spread Mean</label>
+                            <input type="number" id="cfgMean" class="form-control" value="50.0" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label>Spread StdDev</label>
+                            <input type="number" id="cfgStdDev" class="form-control" value="2.5" step="0.1">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Whale Watcher Min Volume</label>
+                        <input type="number" id="cfgMinVolume" class="form-control" value="1.0" step="0.1">
+                    </div>
+                </div>
+
+                <div class="row-grid">
+                    <div class="form-group">
+                        <label>Order Qty</label>
+                        <input type="number" id="cfgQty" class="form-control" value="10" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Tick Interval (s)</label>
+                        <input type="number" id="cfgInterval" class="form-control" value="3" min="1">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Iron Floor Cash Protection</label>
+                    <input type="number" id="cfgIronFloor" class="form-control" value="1000.0" step="100">
+                </div>
+
+                <div class="form-group">
+                    <label>Liveness Timeout Window (ticks)</label>
+                    <input type="number" id="cfgLiveness" class="form-control" value="75" min="5">
+                </div>
+
+                <div style="margin-top: 10px; margin-bottom: 10px;">
+                    <label style="font-weight: bold; font-size: 11px; text-transform: uppercase; color: var(--purple); font-family: var(--font-mono);">Broker Routing Targets</label>
+                    <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 5px;">
+                        <label style="display: flex; align-items: center; gap: 8px; margin: 0; cursor: pointer;">
+                            <input type="checkbox" id="cfgEnableSchwab" checked style="width: 16px; height: 16px; cursor: pointer;">
+                            <span>Schwab Execution</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; margin: 0; cursor: pointer;">
+                            <input type="checkbox" id="cfgEnableIbkr" checked style="width: 16px; height: 16px; cursor: pointer;">
+                            <span>IBKR Execution</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; margin: 0; cursor: pointer;">
+                            <input type="checkbox" id="cfgEnablePaypal" checked style="width: 16px; height: 16px; cursor: pointer;">
+                            <span>PayPal Execution</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; margin: 0; cursor: pointer;">
+                            <input type="checkbox" id="cfgEnableCashapp" checked style="width: 16px; height: 16px; cursor: pointer;">
+                            <span>Cash App Execution</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; margin: 0; cursor: pointer;">
+                            <input type="checkbox" id="cfgEnableStash" checked style="width: 16px; height: 16px; cursor: pointer;">
+                            <span>Stash Execution</span>
+                        </label>
+                    </div>
+                </div>
+
+                <button id="btnSave" class="btn btn-save" style="margin-top:10px;">Update Parameters</button>
+
+                <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px;">
+                    <button id="btnToggle" class="btn btn-start">Start Algorithmic Loop</button>
+                </div>
+            </div>
+
+            <!-- Mortal Limit Order Panel -->
+            <div class="panel">
+                <div class="panel-title">Mortal Limit Orders</div>
+                <div class="row-grid">
+                    <div class="form-group">
+                        <label>Symbol</label>
+                        <input type="text" id="limSymbol" class="form-control" value="AAPL">
+                    </div>
+                    <div class="form-group">
+                        <label>Broker Target</label>
+                        <select id="limBroker" class="form-control">
+                            <option value="Alpaca">Alpaca</option>
+                            <option value="Schwab">Schwab</option>
+                            <option value="Ibkr">IBKR</option>
+                            <option value="Paypal">PayPal</option>
+                            <option value="Cashapp">Cash App</option>
+                            <option value="Stash">Stash</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row-grid" style="margin-top:10px;">
+                    <div class="form-group">
+                        <label>Side</label>
+                        <select id="limSide" class="form-control">
+                            <option value="buy">BUY</option>
+                            <option value="sell">SELL</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Limit Price</label>
+                        <input type="number" id="limPrice" class="form-control" value="150.0" step="0.1">
+                    </div>
+                </div>
+                <div class="row-grid">
+                    <div class="form-group">
+                        <label>Qty</label>
+                        <input type="number" id="limQty" class="form-control" value="10">
+                    </div>
+                    <div class="form-group">
+                        <label>Lifespan (Ticks)</label>
+                        <input type="number" id="limLifespan" class="form-control" value="5" min="1">
+                    </div>
+                </div>
+                <button id="btnSubmitLimit" class="btn btn-save" style="border-color: var(--purple); color: var(--purple); background: rgba(168, 85, 247, 0.1);">Submit Mortal Order</button>
+            </div>
+
+            <!-- Stats HUD -->
+            <div class="panel">
+                <div class="panel-title">Broker Portfolios Valuation</div>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; max-height: 380px; overflow-y: auto; padding-right: 5px;">
+                    <!-- Alpaca -->
+                    <div style="border: 1px solid var(--border); padding: 8px; border-radius: var(--radius); background: rgba(6, 182, 212, 0.03);">
+                        <div style="font-size: 9px; text-transform: uppercase; color: var(--cyan); font-weight: bold; margin-bottom: 5px; font-family: var(--font-mono);">Alpaca</div>
+                        <div style="font-size: 11px; margin-bottom: 2px;">Equity: <span id="hudEquity" style="float: right; font-weight: bold;">$100,000.00</span></div>
+                        <div style="font-size: 11px; margin-bottom: 2px;">Cash: <span id="hudCash" style="float: right;">$100,000.00</span></div>
+                        <div style="font-size: 11px; margin-bottom: 2px;">BP: <span id="hudBuyingPower" style="float: right;">$200,000.00</span></div>
+                        <div style="font-size: 11px;">Unr P&L: <span id="hudPnl" class="text-green" style="float: right; font-weight: bold;">+$0.00</span></div>
+                    </div>
+
+                    <!-- Schwab -->
+                    <div style="border: 1px solid var(--border); padding: 8px; border-radius: var(--radius); background: rgba(168, 85, 247, 0.03);">
+                        <div style="font-size: 9px; text-transform: uppercase; color: var(--purple); font-weight: bold; margin-bottom: 5px; font-family: var(--font-mono);">Schwab</div>
+                        <div style="font-size: 11px; margin-bottom: 2px;">Equity: <span id="hudSchwabEquity" style="float: right; font-weight: bold;">$100,000.00</span></div>
+                        <div style="font-size: 11px; margin-bottom: 2px;">Cash: <span id="hudSchwabCash" style="float: right;">$100,000.00</span></div>
+                        <div style="font-size: 11px; margin-bottom: 2px;">BP: <span id="hudSchwabBuyingPower" style="float: right;">$200,000.00</span></div>
+                        <div style="font-size: 11px;">Unr P&L: <span id="hudSchwabPnl" class="text-green" style="float: right; font-weight: bold;">+$0.00</span></div>
+                    </div>
+
+                    <!-- IBKR -->
+                    <div style="border: 1px solid var(--border); padding: 8px; border-radius: var(--radius); background: rgba(239, 68, 68, 0.03);">
+                        <div style="font-size: 9px; text-transform: uppercase; color: var(--red); font-weight: bold; margin-bottom: 5px; font-family: var(--font-mono);">IBKR</div>
+                        <div style="font-size: 11px; margin-bottom: 2px;">Equity: <span id="hudIbkrEquity" style="float: right; font-weight: bold;">$100,000.00</span></div>
+                        <div style="font-size: 11px; margin-bottom: 2px;">Cash: <span id="hudIbkrCash" style="float: right;">$100,000.00</span></div>
+                        <div style="font-size: 11px; margin-bottom: 2px;">BP: <span id="hudIbkrBuyingPower" style="float: right;">$200,000.00</span></div>
+                        <div style="font-size: 11px;">Unr P&L: <span id="hudIbkrPnl" class="text-green" style="float: right; font-weight: bold;">+$0.00</span></div>
+                    </div>
+
+                    <!-- PayPal -->
+                    <div style="border: 1px solid var(--border); padding: 8px; border-radius: var(--radius); background: rgba(59, 130, 246, 0.03);">
+                        <div style="font-size: 9px; text-transform: uppercase; color: #3b82f6; font-weight: bold; margin-bottom: 5px; font-family: var(--font-mono);">PayPal</div>
+                        <div style="font-size: 11px; margin-bottom: 2px;">Equity: <span id="hudPaypalEquity" style="float: right; font-weight: bold;">$100,000.00</span></div>
+                        <div style="font-size: 11px; margin-bottom: 2px;">Cash: <span id="hudPaypalCash" style="float: right;">$100,000.00</span></div>
+                        <div style="font-size: 11px; margin-bottom: 2px;">BP: <span id="hudPaypalBuyingPower" style="float: right;">$200,000.00</span></div>
+                        <div style="font-size: 11px;">Unr P&L: <span id="hudPaypalPnl" class="text-green" style="float: right; font-weight: bold;">+$0.00</span></div>
+                    </div>
+
+                    <!-- Cash App -->
+                    <div style="border: 1px solid var(--border); padding: 8px; border-radius: var(--radius); background: rgba(16, 185, 129, 0.03);">
+                        <div style="font-size: 9px; text-transform: uppercase; color: #10b981; font-weight: bold; margin-bottom: 5px; font-family: var(--font-mono);">Cash App</div>
+                        <div style="font-size: 11px; margin-bottom: 2px;">Equity: <span id="hudCashappEquity" style="float: right; font-weight: bold;">$100,000.00</span></div>
+                        <div style="font-size: 11px; margin-bottom: 2px;">Cash: <span id="hudCashappCash" style="float: right;">$100,000.00</span></div>
+                        <div style="font-size: 11px; margin-bottom: 2px;">BP: <span id="hudCashappBuyingPower" style="float: right;">$200,000.00</span></div>
+                        <div style="font-size: 11px;">Unr P&L: <span id="hudCashappPnl" class="text-green" style="float: right; font-weight: bold;">+$0.00</span></div>
+                    </div>
+
+                    <!-- Stash -->
+                    <div style="border: 1px solid var(--border); padding: 8px; border-radius: var(--radius); background: rgba(245, 158, 11, 0.03);">
+                        <div style="font-size: 9px; text-transform: uppercase; color: #f59e0b; font-weight: bold; margin-bottom: 5px; font-family: var(--font-mono);">Stash</div>
+                        <div style="font-size: 11px; margin-bottom: 2px;">Equity: <span id="hudStashEquity" style="float: right; font-weight: bold;">$100,000.00</span></div>
+                        <div style="font-size: 11px; margin-bottom: 2px;">Cash: <span id="hudStashCash" style="float: right;">$100,000.00</span></div>
+                        <div style="font-size: 11px; margin-bottom: 2px;">BP: <span id="hudStashBuyingPower" style="float: right;">$200,000.00</span></div>
+                        <div style="font-size: 11px;">Unr P&L: <span id="hudStashPnl" class="text-green" style="float: right; font-weight: bold;">+$0.00</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MIDDLE: Chart & Console Logs -->
+        <div style="display: flex; flex-direction: column;">
+            <!-- Live chart -->
+            <div class="chart-wrapper">
+                <div class="chart-legend" id="chartLegend"></div>
+                <canvas id="liveChart"></canvas>
+            </div>
+
+            <!-- Console Log -->
+            <div class="panel console-panel">
+                <div class="panel-title">System Execution Logs</div>
+                <div id="consoleLogs" class="console-logs"></div>
+            </div>
+
+            <!-- JETWEB TIME MACHINE & BLACK SWAN INJECTOR -->
+            <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 15px; margin-top: 15px;">
+                <!-- Time Machine Backtest -->
+                <div class="panel" style="margin-bottom: 0;">
+                    <div class="panel-title">JetWeb Time Machine Backtester</div>
+                    <div class="row-grid" style="gap: 10px; margin-bottom: 8px;">
+                        <div class="form-group">
+                            <label style="font-size: 10px;">Strategy</label>
+                            <select id="tmStrategy" class="form-control" style="font-size: 11px; height: 26px; padding: 2px;">
+                                <option value="sovereign">Sovereign Sniper</option>
+                                <option value="ema">EMA Crossover</option>
+                                <option value="sniper">Market Sniper</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size: 10px;">Symbol</label>
+                            <input type="text" id="tmSymbol" class="form-control" value="AAPL" style="font-size: 11px; height: 26px; padding: 2px;">
+                        </div>
+                    </div>
+                    <div class="row-grid" style="gap: 10px; margin-bottom: 8px;">
+                        <div class="form-group">
+                            <label style="font-size: 10px;">Init Cash</label>
+                            <input type="number" id="tmInitCash" class="form-control" value="50000" style="font-size: 11px; height: 26px; padding: 2px;">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size: 10px;">Steps</label>
+                            <input type="number" id="tmSteps" class="form-control" value="300" style="font-size: 11px; height: 26px; padding: 2px;">
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 10px;">
+                        <label style="font-size: 10px;">Black Swan Overlay</label>
+                        <select id="tmSwan" class="form-control" style="font-size: 11px; height: 26px; padding: 2px;">
+                            <option value="">None (Historical Baseline)</option>
+                            <option value="flash_crash">Flash Crash (-25% Drop)</option>
+                            <option value="stablecoin_depeg">Stablecoin Depeg ($0.80)</option>
+                        </select>
+                    </div>
+                    <button id="btnRunBacktest" class="btn btn-save" style="width: 100%; border-color: var(--cyan); color: var(--cyan); background: rgba(6, 182, 212, 0.1); cursor: pointer;">Execute Simulation</button>
+                    
+                    <!-- Backtest Results -->
+                    <div id="tmResults" style="margin-top: 10px; padding: 8px; border: 1px dashed var(--border); border-radius: var(--radius); display: none;">
+                        <div style="font-size: 10px; font-weight: bold; text-transform: uppercase; color: var(--green); margin-bottom: 5px; font-family: var(--font-mono);">Simulation Results</div>
+                        <div style="font-size: 11px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px;">
+                            <div>Trades: <span id="tmResTrades" style="font-weight: bold;">0</span></div>
+                            <div>Win Rate: <span id="tmResWinRate" style="font-weight: bold;">0%</span></div>
+                            <div style="grid-column: span 2;">Profit/Loss: <span id="tmResProfit" style="font-weight: bold;">0%</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Black Swan Injector -->
+                <div class="panel" style="margin-bottom: 0;">
+                    <div class="panel-title" style="color: var(--red);">Black Swan Simulator</div>
+                    <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 10px; font-family: var(--font-mono);">INJECT REAL-TIME ANOMALIES:</div>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <button class="btn" style="border-color: var(--red); color: var(--red); background: rgba(239, 68, 68, 0.05); font-size: 11px; padding: 5px; cursor: pointer;" onclick="triggerBlackSwan('flash_crash')">Flash Crash (-25% Drop)</button>
+                        <button class="btn" style="border-color: var(--purple); color: var(--purple); background: rgba(168, 85, 247, 0.05); font-size: 11px; padding: 5px; cursor: pointer;" onclick="triggerBlackSwan('stablecoin_depeg')">Stablecoin Depeg ($0.80)</button>
+                        <button class="btn" style="border-color: var(--orange); color: var(--orange); background: rgba(249, 115, 22, 0.05); font-size: 11px; padding: 5px; cursor: pointer;" onclick="triggerBlackSwan('exchange_hack')">Exchange Hack Hack (-50%)</button>
+                        <button class="btn" style="border-color: var(--cyan); color: var(--cyan); background: rgba(6, 182, 212, 0.05); font-size: 11px; padding: 5px; cursor: pointer;" onclick="triggerBlackSwan('rate_spike')">Rate Spike (5x Spread)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Order Book Depth & Positions -->
+        <div style="display: flex; flex-direction: column; gap: 20px;" class="panel-orders">
+            <!-- Simulated Order Book Depth Ladder -->
+            <div class="panel">
+                <div class="panel-title">
+                    Order Book Depth
+                    <select id="obSymbolSelect" style="background:transparent; border:none; color:var(--cyan); font-family:var(--font-mono); font-size:12px; font-weight:700; outline:none; text-align:right;">
+                        <option value="AAPL" style="background:#090f18;">AAPL</option>
+                        <option value="MSFT" style="background:#090f18;">MSFT</option>
+                        <option value="USDCUSD" style="background:#090f18;">USDCUSD</option>
+                        <option value="USDTUSD" style="background:#090f18;">USDTUSD</option>
+                        <option value="BTCUSD" style="background:#090f18;">BTCUSD</option>
+                        <option value="ETHUSD" style="background:#090f18;">ETHUSD</option>
+                        <option value="GBTC" style="background:#090f18;">GBTC</option>
+                        <option value="ETHE" style="background:#090f18;">ETHE</option>
+                    </select>
+                </div>
+                <div class="orderbook-ladder">
+                    <div id="asksLadder">
+                        <!-- Asks (Red) levels -->
+                    </div>
+                    <div class="ladder-spread" id="obSpreadVal">
+                        Spread: $0.10
+                    </div>
+                    <div id="bidsLadder">
+                        <!-- Bids (Green) levels -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Positions Table -->
+            <div class="panel" style="flex: 1;">
+                <div class="panel-title">Active Positions</div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Broker</th>
+                                <th>Symbol</th>
+                                <th>Qty</th>
+                                <th>Entry</th>
+                                <th>Price</th>
+                                <th>Unr P&L</th>
+                            </tr>
+                         </thead>
+                        <tbody id="positionsTable">
+                            <tr>
+                                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">No open positions</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Order Log -->
+            <div class="panel" style="flex: 1;">
+                <div class="panel-title">Order Ledger</div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Broker</th>
+                                <th>ID</th>
+                                <th>Symbol</th>
+                                <th>Side</th>
+                                <th>Qty</th>
+                                <th>Price</th>
+                                <th>Latency</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTable">
+                            <tr>
+                                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">No placed orders</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTTOM: Options Trade Advisor -->
+        <div class="panel" style="margin-bottom: 20px;">
+            <div class="panel-title">💡 Options Trade Advisor (Advisory Recommendations Only)</div>
+            <div class="table-container" style="max-height: 200px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Underlying</th>
+                            <th>OCC Contract Symbol</th>
+                            <th>Strategy Type</th>
+                            <th>Strike</th>
+                            <th>Expiration</th>
+                            <th>Type</th>
+                            <th>Premium</th>
+                            <th>Reason / Recommendation</th>
+                            <th style="width: 250px; text-align: right;">Action Target</th>
+                        </tr>
+                    </thead>
+                    <tbody id="optionsSuggestionsTable">
+                        <tr>
+                            <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 20px;">No option recommendations generated yet</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- BOTTOM: Immutable Cryptographic Ledger Audit Trail -->
+        <div class="panel ledger-panel">
+            <div class="panel-title">
+                ⛓️ Cryptographically Chained Ledger Audit Trail
+                <span style="font-size: 10px; color: var(--text-secondary); text-transform: none; font-family: var(--font-mono);">
+                    File: scratch/immutable_ledger.json
+                </span>
+            </div>
+            <div class="table-container" style="max-height: 250px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Block #</th>
+                            <th>Broker</th>
+                            <th>Timestamp</th>
+                            <th>Action</th>
+                            <th>Symbol</th>
+                            <th>Qty</th>
+                            <th>Price</th>
+                            <th>Alpaca Cash</th>
+                            <th>Schwab Cash</th>
+                            <th>IBKR Cash</th>
+                            <th>PayPal Cash</th>
+                            <th>Cash App Cash</th>
+                            <th>Stash Cash</th>
+                            <th>Latency</th>
+                            <th>Cryptographic SHA-256 Hash</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ledgerTable">
+                        <tr>
+                            <td colspan="10" style="text-align: center; color: var(--text-muted); padding: 20px;">Ledger genesis not loaded</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <s        // DOM Elements
+        const connIndicator = document.getElementById('connIndicator');
+        const connText = document.getElementById('connText');
+        const modeBadge = document.getElementById('modeBadge');
+        
+        const cfgStrategy = document.getElementById('cfgStrategy');
+        const emaParams = document.getElementById('emaParams');
+        const sniperParams = document.getElementById('sniperParams');
+        const chartLegend = document.getElementById('chartLegend');
+        
+        const cfgSymbol = document.getElementById('cfgSymbol');
+        const cfgShortEma = document.getElementById('cfgShortEma');
+        const cfgLongEma = document.getElementById('cfgLongEma');
+
+        const cfgAssetA = document.getElementById('cfgAssetA');
+        const cfgAssetB = document.getElementById('cfgAssetB');
+        const cfgMean = document.getElementById('cfgMean');
+        const cfgStdDev = document.getElementById('cfgStdDev');
+        const cfgMinVolume = document.getElementById('cfgMinVolume');
+        const cfgIronFloor = document.getElementById('cfgIronFloor');
+        const cfgLiveness = document.getElementById('cfgLiveness');
+        const cfgEnableSchwab = document.getElementById('cfgEnableSchwab');
+        const cfgEnableIbkr = document.getElementById('cfgEnableIbkr');
+        const cfgEnablePaypal = document.getElementById('cfgEnablePaypal');
+        const cfgEnableCashapp = document.getElementById('cfgEnableCashapp');
+        const cfgEnableStash = document.getElementById('cfgEnableStash');
+
+        const limSymbol = document.getElementById('limSymbol');
+        const limSide = document.getElementById('limSide');
+        const limPrice = document.getElementById('limPrice');
+        const limQty = document.getElementById('limQty');
+        const limLifespan = document.getElementById('limLifespan');
+        const limBroker = document.getElementById('limBroker');
+        const btnSubmitLimit = document.getElementById('btnSubmitLimit');
+
+        const cfgQty = document.getElementById('cfgQty');
+        const cfgInterval = document.getElementById('cfgInterval');
+        const btnSave = document.getElementById('btnSave');
+        const btnToggle = document.getElementById('btnToggle');
+
+        const hudEquity = document.getElementById('hudEquity');
+        const hudCash = document.getElementById('hudCash');
+        const hudBuyingPower = document.getElementById('hudBuyingPower');
+        const hudPnl = document.getElementById('hudPnl');
+
+        const hudSchwabEquity = document.getElementById('hudSchwabEquity');
+        const hudSchwabCash = document.getElementById('hudSchwabCash');
+        const hudSchwabBuyingPower = document.getElementById('hudSchwabBuyingPower');
+        const hudSchwabPnl = document.getElementById('hudSchwabPnl');
+
+        const hudIbkrEquity = document.getElementById('hudIbkrEquity');
+        const hudIbkrCash = document.getElementById('hudIbkrCash');
+        const hudIbkrBuyingPower = document.getElementById('hudIbkrBuyingPower');
+        const hudIbkrPnl = document.getElementById('hudIbkrPnl');
+
+        const hudPaypalEquity = document.getElementById('hudPaypalEquity');
+        const hudPaypalCash = document.getElementById('hudPaypalCash');
+        const hudPaypalBuyingPower = document.getElementById('hudPaypalBuyingPower');
+        const hudPaypalPnl = document.getElementById('hudPaypalPnl');
+
+        const hudCashappEquity = document.getElementById('hudCashappEquity');
+        const hudCashappCash = document.getElementById('hudCashappCash');
+        const hudCashappBuyingPower = document.getElementById('hudCashappBuyingPower');
+        const hudCashappPnl = document.getElementById('hudCashappPnl');
+
+        const hudStashEquity = document.getElementById('hudStashEquity');
+        const hudStashCash = document.getElementById('hudStashCash');
+        const hudStashBuyingPower = document.getElementById('hudStashBuyingPower');
+        const hudStashPnl = document.getElementById('hudStashPnl');
+
+        const positionsTable = document.getElementById('positionsTable');
+        const ordersTable = document.getElementById('ordersTable');
+        const ledgerTable = document.getElementById('ledgerTable');
+        const consoleLogs = document.getElementById('consoleLogs');
+        const liveChartCanvas = document.getElementById('liveChart');
+
+        const obSymbolSelect = document.getElementById('obSymbolSelect');
+        const asksLadder = document.getElementById('asksLadder');
+        const bidsLadder = document.getElementById('bidsLadder');
+        const obSpreadVal = document.getElementById('obSpreadVal');
+
+        let isRunning = false;
+        let eventSource = null;
+        let priceHistory = [];
+        let currentStrategy = "ema";
+
+        const API_BASE = window.location.origin.includes('8086') ? window.location.origin : 'http://localhost:8086';
+
+        function toggleParamsView() {
+            const strat = cfgStrategy.value;
+            currentStrategy = strat;
+            if (strat === 'sniper') {
+                emaParams.style.display = 'none';
+                sniperParams.style.display = 'block';
+            } else {
+                emaParams.style.display = 'block';
+                sniperParams.style.display = 'none';
+            }
+            priceHistory = [];
+            updateChartLegend();
+            drawChart();
+        }
+
+        cfgStrategy.addEventListener('change', toggleParamsView);
+
+        function updateChartLegend() {
+            if (currentStrategy === 'sniper') {
+                chartLegend.innerHTML = `
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: var(--blue);"></div>
+                        <span>Z-Score Spread</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: var(--red);"></div>
+                        <span>+2.0 Trigger Band</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: var(--green);"></div>
+                        <span>-2.0 Trigger Band</span>
+                    </div>
+                `;
+            } else if (currentStrategy === 'sovereign') {
+                const sym = cfgSymbol.value || 'AAPL';
+                chartLegend.innerHTML = `
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: var(--blue);"></div>
+                        <span>${sym} Price</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: var(--purple);"></div>
+                        <span>MA-25 Anchor</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: var(--green);"></div>
+                        <span>Fib 0.382 Floor</span>
+                    </div>
+                `;
+            } else {
+                const sym = cfgSymbol.value || 'AAPL';
+                chartLegend.innerHTML = `
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: var(--blue);"></div>
+                        <span>${sym} Price</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: var(--cyan);"></div>
+                        <span>Short EMA</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: var(--purple);"></div>
+                        <span>Long EMA</span>
+                    </div>
+                `;
+            }
+        }
+
+        // Log Console Printer
+        function logMessage(level, tag, msg) {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const timestamp = new Date().toLocaleTimeString();
+            
+            let tagClass = 'tag-sys';
+            if (level === 'ERROR' || level === 'WARN') tagClass = 'tag-err';
+            else if (tag === 'ALGO') tagClass = 'tag-algo';
+            else if (tag === 'TRADE') tagClass = 'tag-trade';
+
+            entry.innerHTML = `
+                <span class="log-ts">[${timestamp}]</span>
+                <span class="log-tag ${tagClass}">[${tag}]</span>
+                <span class="log-msg">${msg}</span>
+            `;
+            
+            consoleLogs.appendChild(entry);
+            consoleLogs.scrollTop = consoleLogs.scrollHeight;
+        }
+
+        function fmtCur(val) {
+            const abs = Math.abs(val);
+            const str = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(abs);
+            return (val < 0 ? '-' : '') + str;
+        }
+
+        async function fetchState() {
+            try {
+                const r = await fetch(`${API_BASE}/api/alpaca/state`);
+                const s = await r.json();
+                
+                cfgStrategy.value = s.Strategy || 'ema';
+                cfgSymbol.value = s.Symbol;
+                cfgQty.value = s.Qty;
+                cfgInterval.value = s.IntervalSeconds;
+                cfgShortEma.value = s.ShortEmaPeriod;
+                cfgLongEma.value = s.LongEmaPeriod;
+
+                cfgAssetA.value = s.AssetA || 'AAPL';
+                cfgAssetB.value = s.AssetB || 'MSFT';
+                cfgMean.value = s.Mean || 50.0;
+                cfgStdDev.value = s.StdDev || 2.5;
+                cfgMinVolume.value = s.MinVolume || 1.0;
+                cfgIronFloor.value = s.IronFloor || 1000.0;
+                cfgLiveness.value = s.LivenessWindow || 75;
+                cfgEnableSchwab.checked = s.EnableSchwab;
+                cfgEnableIbkr.checked = s.EnableIbkr;
+                cfgEnablePaypal.checked = s.EnablePaypal;
+                cfgEnableCashapp.checked = s.EnableCashapp;
+                cfgEnableStash.checked = s.EnableStash;
+                
+                isRunning = s.Running;
+                currentStrategy = s.Strategy || 'ema';
+                toggleParamsView();
+                updateToggleBtnState();
+                
+                if (s.IsSimulation) {
+                    modeBadge.className = 'badge badge-sim';
+                    modeBadge.innerText = 'Simulated';
+                } else {
+                    modeBadge.className = 'badge badge-paper';
+                    modeBadge.innerText = 'Alpaca Paper';
+                }
+
+                if (s.Logs && s.Logs.length > 0 && consoleLogs.innerHTML === '') {
+                    s.Logs.forEach(l => {
+                        logMessage(l.Level, l.Tag, l.Message);
+                    });
+                }
+            } catch (err) {
+                console.error("Error fetching state:", err);
+            }
+        }
+
+        async function fetchPortfolio() {
+            try {
+                const r = await fetch(`${API_BASE}/api/alpaca/portfolio`);
+                const data = await r.json();
+                
+                hudEquity.innerText = fmtCur(data.AlpacaEquity);
+                hudCash.innerText = fmtCur(data.AlpacaCash);
+                hudBuyingPower.innerText = fmtCur(data.AlpacaBp);
+                
+                const alpPnl = data.AlpacaEquity - 100000.00;
+                hudPnl.innerText = (alpPnl >= 0 ? '+' : '') + fmtCur(alpPnl);
+                hudPnl.className = 'hud-val ' + (alpPnl >= 0 ? 'text-green' : 'text-red');
+
+                hudSchwabEquity.innerText = fmtCur(data.SchwabEquity);
+                hudSchwabCash.innerText = fmtCur(data.SchwabCash);
+                hudSchwabBuyingPower.innerText = fmtCur(data.SchwabBp);
+                const schPnl = data.SchwabEquity - 100000.00;
+                hudSchwabPnl.innerText = (schPnl >= 0 ? '+' : '') + fmtCur(schPnl);
+                hudSchwabPnl.className = 'hud-val ' + (schPnl >= 0 ? 'text-green' : 'text-red');
+
+                hudIbkrEquity.innerText = fmtCur(data.IbkrEquity);
+                hudIbkrCash.innerText = fmtCur(data.IbkrCash);
+                hudIbkrBuyingPower.innerText = fmtCur(data.IbkrBp);
+                const ibkrPnl = data.IbkrEquity - 100000.00;
+                hudIbkrPnl.innerText = (ibkrPnl >= 0 ? '+' : '') + fmtCur(ibkrPnl);
+                hudIbkrPnl.className = 'hud-val ' + (ibkrPnl >= 0 ? 'text-green' : 'text-red');
+
+                hudPaypalEquity.innerText = fmtCur(data.PaypalEquity);
+                hudPaypalCash.innerText = fmtCur(data.PaypalCash);
+                hudPaypalBuyingPower.innerText = fmtCur(data.PaypalBp);
+                const payPnl = data.PaypalEquity - 100000.00;
+                hudPaypalPnl.innerText = (payPnl >= 0 ? '+' : '') + fmtCur(payPnl);
+                hudPaypalPnl.className = 'hud-val ' + (payPnl >= 0 ? 'text-green' : 'text-red');
+
+                hudCashappEquity.innerText = fmtCur(data.CashappEquity);
+                hudCashappCash.innerText = fmtCur(data.CashappCash);
+                hudCashappBuyingPower.innerText = fmtCur(data.CashappBp);
+                const caPnl = data.CashappEquity - 100000.00;
+                hudCashappPnl.innerText = (caPnl >= 0 ? '+' : '') + fmtCur(caPnl);
+                hudCashappPnl.className = 'hud-val ' + (caPnl >= 0 ? 'text-green' : 'text-red');
+
+                hudStashEquity.innerText = fmtCur(data.StashEquity);
+                hudStashCash.innerText = fmtCur(data.StashCash);
+                hudStashBuyingPower.innerText = fmtCur(data.StashBp);
+                const stPnl = data.StashEquity - 100000.00;
+                hudStashPnl.innerText = (stPnl >= 0 ? '+' : '') + fmtCur(stPnl);
+                hudStashPnl.className = 'hud-val ' + (stPnl >= 0 ? 'text-green' : 'text-red');
+
+                if (!data.Positions || data.Positions.length === 0) {
+                    positionsTable.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">No open positions</td></tr>`;
+                } else {
+                    positionsTable.innerHTML = '';
+                    data.Positions.forEach(p => {
+                        const unr = (p.Price - p.CostBasis) * p.Qty;
+                        const pnlClass = unr >= 0 ? 'text-green' : 'text-red';
+                        positionsTable.innerHTML += `
+                            <tr>
+                                <td style="font-size:10px; font-weight:700; color:var(--purple);">${p.Broker || 'Alpaca'}</td>
+                                <td style="font-weight:700; color:var(--cyan);">${p.Symbol}</td>
+                                <td>${p.Qty}</td>
+                                <td>${fmtCur(p.CostBasis)}</td>
+                                <td>${fmtCur(p.Price)}</td>
+                                <td class="${pnlClass}">${(unr >= 0 ? '+' : '') + fmtCur(unr)}</td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (err) {
+                console.error("Error fetching portfolio:", err);
+            }
+        }
+
+        async function fetchOrders() {
+            try {
+                const r = await fetch(`${API_BASE}/api/alpaca/orders`);
+                const orders = await r.json();
+                
+                if (!orders || orders.length === 0) {
+                    ordersTable.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 20px;">No placed orders</td></tr>`;
+                } else {
+                    ordersTable.innerHTML = '';
+                    orders.slice().reverse().forEach(o => {
+                        let statusColor = 'var(--text-secondary)';
+                        if (o.Status === 'filled') statusColor = 'var(--green)';
+                        else if (o.Status === 'rejected') statusColor = 'var(--red)';
+                        else if (o.Status === 'expired') statusColor = 'var(--orange)';
+                        else if (o.Status === 'new') statusColor = 'var(--blue)';
+
+                        ordersTable.innerHTML += `
+                            <tr>
+                                <td style="font-size:10px; font-weight:700; color:var(--purple);">${o.Broker || 'Alpaca'}</td>
+                                <td style="color:var(--text-muted); font-size:10px;">${o.ID}</td>
+                                <td style="font-weight:700;">${o.Symbol}</td>
+                                <td class="${o.Side === 'buy' ? 'text-green' : 'text-red'}">${o.Side.toUpperCase()}</td>
+                                <td>${o.Qty}</td>
+                                <td>${fmtCur(o.Price)}</td>
+                                <td style="font-family:var(--font-mono); font-size:11px; color:var(--cyan);">${o.LatencyMs ? o.LatencyMs + 'ms' : '-'}</td>
+                                <td style="color:${statusColor}; font-weight:600;">${o.Status.toUpperCase()}</td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (err) {
+                console.error("Error fetching orders:", err);
+            }
+        }
+
+        // Fetch Cryptographic Ledger with joint cash snaps
+        async function fetchLedger() {
+            try {
+                const r = await fetch(`${API_BASE}/api/alpaca/ledger`);
+                const ledger = await r.json();
+                
+                if (!ledger || ledger.length === 0) {
+                    ledgerTable.innerHTML = `<tr><td colspan="16" style="text-align: center; color: var(--text-muted); padding: 20px;">Ledger is empty</td></tr>`;
+                } else {
+                    ledgerTable.innerHTML = '';
+                    ledger.slice().reverse().forEach(tx => {
+                        let actionColor = 'var(--text-primary)';
+                        if (tx.Action === 'BUY') actionColor = 'var(--green)';
+                        else if (tx.Action === 'SELL') actionColor = 'var(--red)';
+                        else if (tx.Action === 'SHORT' || tx.Action === 'sell_short') actionColor = 'var(--purple)';
+                        else if (tx.Action === 'EXPIRE') actionColor = 'var(--orange)';
+                        else if (tx.Action === 'GENESIS') actionColor = 'var(--blue)';
+
+                        ledgerTable.innerHTML += `
+                            <tr>
+                                <td style="font-weight:700; color:var(--cyan);">#${tx.Index}</td>
+                                <td style="font-size:10px; font-weight:700; color:var(--purple);">${tx.Broker || 'Alpaca'}</td>
+                                <td style="color:var(--text-secondary); font-size:10px;">${new Date(tx.Timestamp).toLocaleString()}</td>
+                                <td style="color:${actionColor}; font-weight:700;">${tx.Action.toUpperCase()}</td>
+                                <td style="font-weight:700;">${tx.Symbol}</td>
+                                <td>${tx.Qty}</td>
+                                <td>${tx.Price > 0 ? fmtCur(tx.Price) : '-'}</td>
+                                <td>${fmtCur(tx.AlpacaCash)}</td>
+                                <td>${fmtCur(tx.SchwabCash)}</td>
+                                <td>${fmtCur(tx.IbkrCash || 0)}</td>
+                                <td>${fmtCur(tx.PaypalCash || 0)}</td>
+                                <td>${fmtCur(tx.CashappCash || 0)}</td>
+                                <td>${fmtCur(tx.StashCash || 0)}</td>
+                                <td style="font-family:var(--font-mono); font-size:11px; color:var(--cyan);">${tx.LatencyMs ? tx.LatencyMs + 'ms' : '-'}</td>
+                                <td><span class="hash-badge" title="${tx.Hash}">${tx.Hash.substring(0, 16)}...</span></td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (err) {
+                console.error("Error fetching ledger:", err);
+            }
+        }
+
+        // Fetch advisory options suggestions from Go backend
+        async function fetchOptionsSuggestions() {
+            try {
+                const r = await fetch(`${API_BASE}/api/alpaca/options/suggestions`);
+                const data = await r.json();
+                
+                const table = document.getElementById('optionsSuggestionsTable');
+                if (!data || data.length === 0) {
+                    table.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 20px;">No option recommendations generated yet</td></tr>`;
+                } else {
+                    table.innerHTML = '';
+                    data.forEach(s => {
+                        table.innerHTML += `
+                            <tr>
+                                <td style="font-weight:700; color:var(--cyan);">${s.underlying_symbol}</td>
+                                <td style="font-family:var(--font-mono); font-size:11px;">${s.occ_symbol}</td>
+                                <td style="font-weight:600; color:var(--purple);">${s.strategy_name}</td>
+                                <td>$${s.strike.toFixed(2)}</td>
+                                <td>${s.expiration}</td>
+                                <td>${s.type.toUpperCase()}</td>
+                                <td class="text-green">$${s.premium.toFixed(2)}</td>
+                                <td style="font-size:11px; color:var(--text-secondary);">${s.reason}</td>
+                                <td style="text-align: right;">
+                                    <select id="tgt-${s.id}" class="form-control" style="width:90px; display:inline-block; font-size:11px; height:24px; padding:2px; margin-right:5px; background:#0c131c; border-color:var(--border);">
+                                        <option value="Schwab">Schwab</option>
+                                        <option value="Alpaca">Alpaca</option>
+                                        <option value="Ibkr">IBKR</option>
+                                        <option value="Paypal">PayPal</option>
+                                        <option value="Cashapp">Cash App</option>
+                                        <option value="Stash">Stash</option>
+                                    </select>
+                                    <input type="number" id="qty-${s.id}" value="1" min="1" style="width:45px; display:inline-block; font-size:11px; height:24px; padding:2px; margin-right:5px; background:#0c131c; border-color:var(--border);" class="form-control">
+                                    <button class="btn btn-save" style="padding: 2px 6px; display:inline-block; font-size:11px; height:24px; line-height:18px; border-color:var(--green); color:var(--green); background:rgba(16,185,129,0.1);" onclick="executeOptionSuggestion('${s.id}')">Execute</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (err) {
+                console.error("Error fetching options suggestions:", err);
+            }
+        }
+
+        async function executeOptionSuggestion(id) {
+            const tgtSelect = document.getElementById(`tgt-${id}`);
+            const qtyInput = document.getElementById(`qty-${id}`);
+            const payload = {
+                suggestion_id: id,
+                broker: tgtSelect.value,
+                contracts: parseInt(qtyInput.value)
+            };
+
+            try {
+                const r = await fetch(`${API_BASE}/api/alpaca/options/execute`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (r.ok) {
+                    const res = await r.json();
+                    logMessage('INFO', 'TRADE', `Executed Option trade for ${payload.contracts} contracts on ${payload.broker}. Premium credit: ${fmtCur(res.premium)}`);
+                    fetchPortfolio();
+                    fetchLedger();
+                    fetchOptionsSuggestions();
+                } else {
+                    const txt = await r.text();
+                    logMessage('ERROR', 'SYSTEM', `Option execution failed: ${txt}`);
+                }
+            } catch (err) {
+                logMessage('ERROR', 'SYSTEM', `Option execution error: ${err.message}`);
+            }
+        }
+
+        // Fetch and render Orderbook Depth ladder
+        async function fetchOrderBook() {
+            const sym = obSymbolSelect.value;
+            try {
+                const r = await fetch(`${API_BASE}/api/alpaca/orderbook?symbol=${sym}`);
+                const book = await r.json();
+
+                // Render Asks
+                asksLadder.innerHTML = '';
+                book.asks.slice().reverse().forEach(ask => {
+                    asksLadder.innerHTML += `
+                        <div class="ladder-row ladder-ask">
+                            <span>ASK</span>
+                            <span>$${ask.Price.toFixed(2)}</span>
+                            <span>${ask.Size} shares</span>
+                        </div>
+                    `;
+                });
+
+                // Calculate Spread
+                if (book.asks.length > 0 && book.bids.length > 0) {
+                    const spread = book.asks[0].Price - book.bids[0].Price;
+                    obSpreadVal.innerText = `Spread: $${spread.toFixed(2)}`;
+                }
+
+                // Render Bids
+                bidsLadder.innerHTML = '';
+                book.bids.forEach(bid => {
+                    bidsLadder.innerHTML += `
+                        <div class="ladder-row ladder-bid">
+                            <span>BID</span>
+                            <span>$${bid.Price.toFixed(2)}</span>
+                            <span>${bid.Size} shares</span>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                console.error("Error fetching orderbook:", err);
+            }
+        }
+
+        function updateToggleBtnState() {
+            if (isRunning) {
+                btnToggle.innerText = 'Pause Algorithmic Loop';
+                btnToggle.className = 'btn btn-stop';
+            } else {
+                btnToggle.innerText = 'Start Algorithmic Loop';
+                btnToggle.className = 'btn btn-start';
+            }
+        }
+
+        function setupSSE() {
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            eventSource = new EventSource(`${API_BASE}/api/alpaca/events`);
+            
+            eventSource.onopen = () => {
+                connIndicator.className = 'indicator active';
+                connText.innerText = 'Connected';
+                logMessage('INFO', 'SYSTEM', 'Real-time Event Stream connection established.');
+            };
+
+            eventSource.onerror = (e) => {
+                connIndicator.className = 'indicator';
+                connText.innerText = 'Offline';
+                logMessage('ERROR', 'SYSTEM', 'Event stream disconnected. Retrying...');
+            };
+
+            eventSource.addEventListener('log', (e) => {
+                const log = JSON.parse(e.data);
+                logMessage(log.Level, log.Tag, log.Message);
+                fetchLedger();
+            });
+
+            eventSource.addEventListener('tick', (e) => {
+                const tick = JSON.parse(e.data);
+                priceHistory.push(tick);
+                if (priceHistory.length > 50) {
+                    priceHistory.shift();
+                }
+                drawChart();
+                fetchPortfolio();
+                fetchOrders();
+                fetchOrderBook();
+                fetchLedger();
+                fetchOptionsSuggestions();
+            });
+        }
+
+        btnSave.addEventListener('click', async () => {
+            const payload = {
+                Strategy: cfgStrategy.value,
+                Symbol: cfgSymbol.value.toUpperCase().trim(),
+                Qty: parseInt(cfgQty.value),
+                IntervalSeconds: parseInt(cfgInterval.value),
+                ShortEmaPeriod: parseInt(cfgShortEma.value),
+                LongEmaPeriod: parseInt(cfgLongEma.value),
+                AssetA: cfgAssetA.value.toUpperCase().trim(),
+                AssetB: cfgAssetB.value.toUpperCase().trim(),
+                Mean: parseFloat(cfgMean.value),
+                StdDev: parseFloat(cfgStdDev.value),
+                MinVolume: parseFloat(cfgMinVolume.value),
+                IronFloor: parseFloat(cfgIronFloor.value),
+                LivenessWindow: parseInt(cfgLiveness.value),
+                EnableSchwab: cfgEnableSchwab.checked,
+                EnableIbkr: cfgEnableIbkr.checked,
+                EnablePaypal: cfgEnablePaypal.checked,
+                EnableCashapp: cfgEnableCashapp.checked,
+                EnableStash: cfgEnableStash.checked
+            };
+
+            try {
+                const r = await fetch(`${API_BASE}/api/alpaca/config`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (r.ok) {
+                    logMessage('INFO', 'SYSTEM', `Configuration updated. Strategy: ${payload.Strategy.toUpperCase()}`);
+                    priceHistory = [];
+                    fetchState();
+                } else {
+                    const txt = await r.text();
+                    logMessage('ERROR', 'SYSTEM', `Update config failed: ${txt}`);
+                }
+            } catch (err) {
+                logMessage('ERROR', 'SYSTEM', `Update config error: ${err.message}`);
+            }
+        });
+
+        // Submit Mortal Limit Order
+        btnSubmitLimit.addEventListener('click', async () => {
+            const payload = {
+                Symbol: limSymbol.value.toUpperCase().trim(),
+                Side: limSide.value,
+                Qty: parseInt(limQty.value),
+                Price: parseFloat(limPrice.value),
+                LifespanTicks: parseInt(limLifespan.value),
+                Broker: limBroker.value
+            };
+
+            try {
+                const r = await fetch(`${API_BASE}/api/alpaca/limit_order`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (r.ok) {
+                    logMessage('INFO', 'SYSTEM', `Mortal Limit Order placed for ${payload.Qty} ${payload.Symbol} at $${payload.Price.toFixed(2)} on ${payload.Broker} (Expiry: ${payload.LifespanTicks} ticks).`);
+                    fetchOrders();
+                } else {
+                    const txt = await r.text();
+                    logMessage('ERROR', 'SYSTEM', `Failed to place limit order: ${txt}`);
+                }
+            } catch (err) {
+                logMessage('ERROR', 'SYSTEM', `Submit limit order error: ${err.message}`);
+            }
+        });    });
+
+        btnToggle.addEventListener('click', async () => {
+            const action = isRunning ? 'stop' : 'start';
+            try {
+                const r = await fetch(`${API_BASE}/api/alpaca/${action}`, { method: 'POST' });
+                if (r.ok) {
+                    isRunning = !isRunning;
+                    updateToggleBtnState();
+                    logMessage('INFO', 'SYSTEM', `Engine state toggled to: ${isRunning ? 'RUNNING' : 'STOPPED'}`);
+                } else {
+                    const txt = await r.text();
+                    logMessage('ERROR', 'SYSTEM', `Failed to toggle engine: ${txt}`);
+                }
+            } catch (err) {
+                logMessage('ERROR', 'SYSTEM', `Toggle engine error: ${err.message}`);
+            }
+        });
+
+        const ctx = liveChartCanvas.getContext('2d');
+        
+        function resizeCanvas() {
+            const width = liveChartCanvas.parentElement.clientWidth;
+            const height = liveChartCanvas.parentElement.clientHeight;
+            liveChartCanvas.width = width;
+            liveChartCanvas.height = height;
+            drawChart();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        function drawChart() {
+            const w = liveChartCanvas.width;
+            const h = liveChartCanvas.height;
+            if (w === 0 || h === 0) return;
+
+            ctx.fillStyle = '#060a11';
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.strokeStyle = 'rgba(59, 130, 246, 0.05)';
+            ctx.lineWidth = 1;
+            for (let i = 50; i < w; i += 80) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, h);
+                ctx.stroke();
+            }
+            for (let i = 40; i < h; i += 40) {
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(w, i);
+                ctx.stroke();
+            }
+
+            if (priceHistory.length < 2) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.font = '12px ' + getComputedStyle(document.body).getPropertyValue('--font-mono');
+                ctx.textAlign = 'center';
+                ctx.fillText("Awaiting tick data streaming...", w / 2, h / 2);
+                return;
+            }
+
+            if (currentStrategy === 'sniper') {
+                const minVal = -3.5;
+                const maxVal = 3.5;
+
+                const scaleX = w / (priceHistory.length - 1);
+                const scaleY = (h - 60) / (maxVal - minVal);
+                
+                const getX = (idx) => idx * scaleX;
+                const getY = (val) => h - 30 - (val - minVal) * scaleY;
+
+                ctx.beginPath();
+                ctx.moveTo(0, getY(0));
+                ctx.lineTo(w, getY(0));
+                ctx.strokeStyle = 'rgba(59, 130, 246, 0.2)';
+                ctx.setLineDash([5, 5]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                ctx.beginPath();
+                ctx.moveTo(0, getY(2.0));
+                ctx.lineTo(w, getY(2.0));
+                ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(0, getY(-2.0));
+                ctx.lineTo(w, getY(-2.0));
+                ctx.strokeStyle = 'rgba(16, 185, 129, 0.4)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.8)';
+                ctx.font = '9px ' + getComputedStyle(document.body).getPropertyValue('--font-mono');
+                ctx.textAlign = 'left';
+                ctx.fillText("+2.0 Overvalued short/buy-leg trigger", 10, getY(2.0) - 6);
+
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.8)';
+                ctx.fillText("-2.0 Undervalued long/buy-leg trigger", 10, getY(-2.0) + 12);
+
+                ctx.beginPath();
+                ctx.moveTo(getX(0), getY(priceHistory[0].ZScore));
+                priceHistory.forEach((d, idx) => {
+                    ctx.lineTo(getX(idx), getY(d.ZScore));
+                });
+                ctx.strokeStyle = '#06b6d4';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                priceHistory.forEach((d, idx) => {
+                    const x = getX(idx);
+                    const y = getY(d.ZScore);
+
+                    if (idx === priceHistory.length - 1) {
+                        ctx.fillStyle = '#06b6d4';
+                        ctx.beginPath();
+                        ctx.arc(x, y, 5, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.fillStyle = '#fff';
+                        ctx.textAlign = 'right';
+                        ctx.fillText(`Z: ${d.ZScore.toFixed(2)}`, w - 10, y - 8);
+                    }
+
+                    if (d.Signal && d.Signal !== 'none') {
+                        ctx.beginPath();
+                        ctx.arc(x, y, 8, 0, Math.PI * 2);
+                        if (d.Signal === 'buy') {
+                            ctx.fillStyle = '#10b981';
+                            ctx.fill();
+                            ctx.fillStyle = '#fff';
+                            ctx.textAlign = 'center';
+                            ctx.font = 'bold 9px Arial';
+                            ctx.fillText('B', x, y + 3);
+                        } else if (d.Signal === 'sell') {
+                            ctx.fillStyle = '#ef4444';
+                            ctx.fill();
+                            ctx.fillStyle = '#fff';
+                            ctx.textAlign = 'center';
+                            ctx.font = 'bold 9px Arial';
+                            ctx.fillText('S', x, y + 3);
+                        }
+                    }
+                });
+
+            } else {
+                let minVal = Infinity;
+                let maxVal = -Infinity;
+
+                priceHistory.forEach(d => {
+                    minVal = Math.min(minVal, d.Price);
+                    maxVal = Math.max(maxVal, d.Price);
+                    if (currentStrategy === 'sovereign') {
+                        if (d.Ma25 > 0) {
+                            minVal = Math.min(minVal, d.Ma25);
+                            maxVal = Math.max(maxVal, d.Ma25);
+                        }
+                        if (d.Fib382 > 0) {
+                            minVal = Math.min(minVal, d.Fib382);
+                            maxVal = Math.max(maxVal, d.Fib382);
+                        }
+                        if (d.Fib618 > 0) {
+                            minVal = Math.min(minVal, d.Fib618);
+                            maxVal = Math.max(maxVal, d.Fib618);
+                        }
+                    } else {
+                        if (d.ShortEma > 0) {
+                            minVal = Math.min(minVal, d.ShortEma);
+                            maxVal = Math.max(maxVal, d.ShortEma);
+                        }
+                        if (d.LongEma > 0) {
+                            minVal = Math.min(minVal, d.LongEma);
+                            maxVal = Math.max(maxVal, d.LongEma);
+                        }
+                    }
+                });
+
+                const range = (maxVal - minVal) || 2.0;
+                minVal -= range * 0.1;
+                maxVal += range * 0.1;
+
+                const scaleX = w / (priceHistory.length - 1);
+                const scaleY = (h - 60) / (maxVal - minVal);
+                
+                const getX = (idx) => idx * scaleX;
+                const getY = (val) => h - 30 - (val - minVal) * scaleY;
+
+                if (currentStrategy === 'sovereign') {
+                    // Render MA-25 Anchor
+                    ctx.beginPath();
+                    let firstMa = false;
+                    priceHistory.forEach((d, idx) => {
+                        if (d.Ma25 > 0) {
+                            const x = getX(idx);
+                            const y = getY(d.Ma25);
+                            if (!firstMa) {
+                                ctx.moveTo(x, y);
+                                firstMa = true;
+                            } else {
+                                ctx.lineTo(x, y);
+                            }
+                        }
+                    });
+                    ctx.strokeStyle = '#a855f7';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    // Render Fib 0.382 Floor
+                    ctx.beginPath();
+                    let firstFib382 = false;
+                    priceHistory.forEach((d, idx) => {
+                        if (d.Fib382 > 0) {
+                            const x = getX(idx);
+                            const y = getY(d.Fib382);
+                            if (!firstFib382) {
+                                ctx.moveTo(x, y);
+                                firstFib382 = true;
+                            } else {
+                                ctx.lineTo(x, y);
+                            }
+                        }
+                    });
+                    ctx.strokeStyle = '#10b981';
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([4, 4]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                } else {
+                    ctx.beginPath();
+                    let firstEmaLong = false;
+                    priceHistory.forEach((d, idx) => {
+                        if (d.LongEma > 0) {
+                            const x = getX(idx);
+                            const y = getY(d.LongEma);
+                            if (!firstEmaLong) {
+                                ctx.moveTo(x, y);
+                                firstEmaLong = true;
+                            } else {
+                                ctx.lineTo(x, y);
+                            }
+                        }
+                    });
+                    ctx.strokeStyle = '#a855f7';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    let firstEmaShort = false;
+                    priceHistory.forEach((d, idx) => {
+                        if (d.ShortEma > 0) {
+                            const x = getX(idx);
+                            const y = getY(d.ShortEma);
+                            if (!firstEmaShort) {
+                                ctx.moveTo(x, y);
+                                firstEmaShort = true;
+                            } else {
+                                ctx.lineTo(x, y);
+                            }
+                        }
+                    });
+                    ctx.strokeStyle = '#06b6d4';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+
+                ctx.beginPath();
+                ctx.moveTo(getX(0), getY(priceHistory[0].Price));
+                priceHistory.forEach((d, idx) => {
+                    ctx.lineTo(getX(idx), getY(d.Price));
+                });
+                ctx.lineTo(getX(priceHistory.length - 1), h);
+                ctx.lineTo(getX(0), h);
+                ctx.closePath();
+
+                const priceGrad = ctx.createLinearGradient(0, 0, 0, h);
+                priceGrad.addColorStop(0, 'rgba(59, 130, 246, 0.25)');
+                priceGrad.addColorStop(1, 'rgba(59, 130, 246, 0.00)');
+                ctx.fillStyle = priceGrad;
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(getX(0), getY(priceHistory[0].Price));
+                priceHistory.forEach((d, idx) => {
+                    ctx.lineTo(getX(idx), getY(d.Price));
+                });
+                ctx.strokeStyle = '#3b82f6';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                priceHistory.forEach((d, idx) => {
+                    const x = getX(idx);
+                    const y = getY(d.Price);
+
+                    if (idx === priceHistory.length - 1) {
+                        ctx.fillStyle = '#3b82f6';
+                        ctx.beginPath();
+                        ctx.arc(x, y, 5, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.fillStyle = '#fff';
+                        ctx.font = '10px ' + getComputedStyle(document.body).getPropertyValue('--font-mono');
+                        ctx.textAlign = 'right';
+                        ctx.fillText(fmtCur(d.Price), w - 10, y - 8);
+                    }
+
+                    if (d.Signal && d.Signal !== 'none') {
+                        ctx.beginPath();
+                        ctx.arc(x, y, 7, 0, Math.PI * 2);
+                        if (d.Signal === 'buy') {
+                            ctx.fillStyle = '#10b981';
+                            ctx.fill();
+                            ctx.fillStyle = '#fff';
+                            ctx.textAlign = 'center';
+                            ctx.font = 'bold 8px Arial';
+                            ctx.fillText('B', x, y + 3);
+                        } else if (d.Signal === 'sell') {
+                            ctx.fillStyle = '#ef4444';
+                            ctx.fill();
+                            ctx.fillStyle = '#fff';
+                            ctx.textAlign = 'center';
+                            ctx.font = 'bold 8px Arial';
+                            ctx.fillText('S', x, y + 3);
+                        }
+                    }
+                });
+
+                if (currentStrategy === 'sovereign' && priceHistory.length > 0) {
+                    const last = priceHistory[priceHistory.length - 1];
+                    ctx.fillStyle = 'rgba(6, 182, 212, 0.8)';
+                    ctx.font = '10px ' + getComputedStyle(document.body).getPropertyValue('--font-mono');
+                    ctx.textAlign = 'left';
+                    ctx.fillText(`RSI: ${last.Rsi.toFixed(1)}  |  RelVol: ${last.RelVol.toFixed(2)}  |  Slope: ${last.Slope.toFixed(2)}`, 10, h - 10);
+                }
+            }
+        }
+
+        async function init() {
+            await fetchState();
+            await fetchPortfolio();
+            await fetchOrders();
+            await fetchLedger();
+            await fetchOrderBook();
+            setupSSE();
+            resizeCanvas();
+            
+            // Periodically refresh order book depth & ledger history
+            setInterval(fetchOrderBook, 3000);
+            setInterval(fetchLedger, 5000);
+            setInterval(fetchPortfolio, 5000);
+            setInterval(fetchOrders, 7000);
+        }
+
+        // Black Swan Trigger Function
+        async function triggerBlackSwan(swanType) {
+            try {
+                const r = await fetch(`${API_BASE}/api/alpaca/black_swan/trigger`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ swan_type: swanType })
+                });
+                if (r.ok) {
+                    logMessage('WARN', 'BLACK-SWAN', `Black swan event [${swanType}] successfully injected into engine loop.`);
+                    fetchPortfolio();
+                } else {
+                    const txt = await r.text();
+                    logMessage('ERROR', 'BLACK-SWAN', `Failed to inject black swan: ${txt}`);
+                }
+            } catch (err) {
+                console.error("Error triggering black swan:", err);
+            }
+        }
+        window.triggerBlackSwan = triggerBlackSwan; // make globally accessible
+
+        // Time Machine Backtest Trigger
+        const btnRunBacktest = document.getElementById('btnRunBacktest');
+        const tmStrategy = document.getElementById('tmStrategy');
+        const tmSymbol = document.getElementById('tmSymbol');
+        const tmInitCash = document.getElementById('tmInitCash');
+        const tmSteps = document.getElementById('tmSteps');
+        const tmSwan = document.getElementById('tmSwan');
+        const tmResults = document.getElementById('tmResults');
+        const tmResTrades = document.getElementById('tmResTrades');
+        const tmResWinRate = document.getElementById('tmResWinRate');
+        const tmResProfit = document.getElementById('tmResProfit');
+
+        btnRunBacktest.addEventListener('click', async () => {
+            btnRunBacktest.disabled = true;
+            btnRunBacktest.innerText = 'Running Simulation...';
+            tmResults.style.display = 'none';
+
+            const payload = {
+                strategy: tmStrategy.value,
+                symbol: tmSymbol.value.toUpperCase().trim(),
+                initial_balance: parseFloat(tmInitCash.value) || 50000.0,
+                steps: parseInt(tmSteps.value) || 300,
+                black_swan_type: tmSwan.value
+            };
+
+            try {
+                const r = await fetch(`${API_BASE}/api/alpaca/backtest/run`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (r.ok) {
+                    const res = await r.json();
+                    tmResTrades.innerText = res.TotalTrades;
+                    tmResWinRate.innerText = `${res.WinRate}% (Wins: ${res.WinTrades}, Losses: ${res.LossTrades})`;
+                    
+                    const sign = res.ProfitLoss >= 0 ? '+' : '';
+                    tmResProfit.innerText = `${sign}${res.ProfitLoss}%`;
+                    tmResProfit.className = res.ProfitLoss >= 0 ? 'text-green' : 'text-red';
+                    
+                    tmResults.style.display = 'block';
+                    logMessage('INFO', 'TIME-MACHINE', `Backtest complete. Win Rate: ${res.WinRate}%, P&L: ${sign}${res.ProfitLoss}%`);
+                    await fetchLedger();
+                } else {
+                    const txt = await r.text();
+                    logMessage('ERROR', 'TIME-MACHINE', `Backtest simulation failed: ${txt}`);
+                }
+            } catch (err) {
+                console.error("Error running backtest:", err);
+                logMessage('ERROR', 'TIME-MACHINE', `System error during simulation.`);
+            } finally {
+                btnRunBacktest.disabled = false;
+                btnRunBacktest.innerText = 'Execute Simulation';
+            }
+        });
+
+        obSymbolSelect.addEventListener('change', fetchOrderBook);
+
+        window.onload = init;
+    </script>
+</body>
+</html>
