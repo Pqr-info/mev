@@ -78,6 +78,22 @@ def infer(req: InferenceRequest):
         return {"error": "unknown model"}
     return {"text": outputs[0].outputs[0].text}
 
+@app.get("/health")
+def health():
+    # Check if models are loaded
+    models_ok = (llm_qwen is not None) and (llm_gemma is not None)
+    
+    # Check brain mount
+    brain_path = "/mnt/c/Users/theal/.gemini/transcript.jsonl"
+    brain_ok = os.path.exists(brain_path)
+    
+    status = "ok" if (models_ok and brain_ok) else "degraded"
+    return {
+        "status": status,
+        "models_loaded": models_ok,
+        "brain_mounted": brain_ok
+    }
+
 if __name__ == "__main__":
     port = int(os.environ.get("MAX_VLLM_PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)

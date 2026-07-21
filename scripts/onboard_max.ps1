@@ -43,16 +43,20 @@ if ($wslList -notmatch $WslDistroName) {
 Write-Host "WSL distro $WslDistroName found."
 
 # 4. Copy bootstrap script to WSL and trigger it
-Write-Host "Copying bootstrap script into WSL and fixing line endings..."
-$bootstrapSource = Join-Path $PSScriptRoot "max_inference_bootstrap.sh"
-# Use wslpath to get the WSL-compatible path for the source script
-$wslSource = wsl.exe -d $WslDistroName -- wslpath -a $bootstrapSource
-$bootstrapTarget = "/opt/max/max_inference_bootstrap.sh"
+Write-Host "Copying bootstrap script into WSL and executing..."
+$HostScriptPath = Join-Path $PSScriptRoot "max_inference_bootstrap.sh"
+$WslTargetDir = "/opt/max"
+$WslTargetPath = "/opt/max/max_inference_bootstrap.sh"
 
-wsl.exe -d $WslDistroName -- bash -lc "mkdir -p /opt/max && tr -d '\r' < `"$wslSource`" > $bootstrapTarget && chmod +x $bootstrapTarget"
+# Ensure target dir exists in WSL
+wsl.exe -d $WslDistroName -- bash -lc "mkdir -p $WslTargetDir"
 
+# Copy script into WSL filesystem
+wsl.exe -d $WslDistroName -- bash -lc "cat > $WslTargetPath" < $HostScriptPath
+
+# Make it executable and run it
 Write-Host "Starting WSL bootstrap for vLLM + Qwen3-Coder-30B + Gemma-4-e4b ..."
-wsl.exe -d $WslDistroName -- bash -lc "$bootstrapTarget"
+wsl.exe -d $WslDistroName -- bash -lc "chmod +x $WslTargetPath && $WslTargetPath"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: WSL bootstrap failed." -ForegroundColor Red
