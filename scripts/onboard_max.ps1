@@ -52,7 +52,7 @@ $WslTargetPath = "/opt/max/max_inference_bootstrap.sh"
 wsl.exe -d $WslDistroName -- bash -lc "mkdir -p $WslTargetDir"
 
 # Copy script into WSL filesystem
-wsl.exe -d $WslDistroName -- bash -lc "cat > $WslTargetPath" < $HostScriptPath
+cmd.exe /c "wsl.exe -d $WslDistroName -- bash -lc `"cat > $WslTargetPath`" < `"$HostScriptPath`""
 
 # Make it executable and run it
 Write-Host "Starting WSL bootstrap for vLLM + Qwen3-Coder-30B + Gemma-4-e4b ..."
