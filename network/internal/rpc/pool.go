@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/mev-protocol/network/internal/metrics"
+	"pqr.info/mev/network/internal/metrics"
 	"github.com/rs/zerolog/log"
 )
 

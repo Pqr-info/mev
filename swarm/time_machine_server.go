@@ -26,6 +26,7 @@ func (s *TimeMachineServer) Start() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/replay", s.handleReplay)
 	mux.HandleFunc("/news", s.handleNews)
+	mux.HandleFunc("/inference/route", s.handleInferenceRoute)
 
 	addr := fmt.Sprintf(":%d", s.port)
 	log.Printf("TimeMachine Server listening on %s", addr)
@@ -60,7 +61,9 @@ func (s *TimeMachineServer) handleReplay(w http.ResponseWriter, r *http.Request)
 	
 	if len(segment.Events) == 0 {
 		fmt.Fprintf(w, "event: end\ndata: {\"message\": \"No market events found for %s\"}\n\n", dateStr)
-		w.Header().Flush()
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
 		return
 	}
 
@@ -166,4 +169,39 @@ func (s *TimeMachineServer) handleNews(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintf(w, "event: end\ndata: {\"message\": \"News replay complete\"}\n\n")
 	flusher.Flush()
+}
+
+func (s *TimeMachineServer) handleInferenceRoute(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var payload struct {
+		Query  string             `json:"query"`
+		Sender map[string]float64 `json:"sender"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "invalid JSON payload", http.StatusBadRequest)
+		return
+	}
+	defer r.Body.Close()
+
+	if payload.Query == "" {
+		http.Error(w, "missing query", http.StatusBadRequest)
+		return
+	}
+
+	// Route query to the local mothership engine
+	result, err := s.replay.ConsultMothership(r.Context(), payload.Query)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("inference failed: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"result": result,
+	})
 }

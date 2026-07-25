@@ -18,35 +18,37 @@ fi
 
 # 2. Create vLLM virtual environment
 echo "Creating vLLM environment at ${VLLM_ENV_DIR} ..."
+rm -rf "${VLLM_ENV_DIR}"
 python3 -m venv "${VLLM_ENV_DIR}"
 source "${VLLM_ENV_DIR}/bin/activate"
 
 # 3. Install vLLM + CUDA deps (assumes CUDA already configured for WSL)
 echo "Installing vLLM and dependencies..."
 pip install --upgrade pip
-pip install vllm "torch>=2.3" "transformers>=4.40" "accelerate" "sentencepiece"
+pip install vllm==0.6.3.post1 --extra-index-url https://download.pytorch.org/whl/cu121
+pip install "transformers==4.44.2" "accelerate" "sentencepiece"
 
 mkdir -p "${MODELS_DIR}"
 
-# 4. Download / prepare Qwen3-Coder-30B
-echo "Preparing Qwen3-Coder-30B ..."
-QWEN_MODEL_NAME="Qwen/Qwen3-Coder-30B"
-QWEN_LOCAL_DIR="${MODELS_DIR}/qwen3-coder-30b"
+# 4. Download / prepare Qwen2.5-Coder-32B
+echo "Preparing Qwen2.5-Coder-32B ..."
+QWEN_MODEL_NAME="Qwen/Qwen2.5-Coder-32B"
+QWEN_LOCAL_DIR="${MODELS_DIR}/qwen2.5-coder-32b"
 
 python - <<PY
 from huggingface_hub import snapshot_download
 snapshot_download(repo_id="${QWEN_MODEL_NAME}", local_dir="${QWEN_LOCAL_DIR}", local_dir_use_symlinks=False)
 PY
 
-# 5. Download / prepare Gemma-4-e4b
+# 5. Prepare Gemma-4-e4b (GGUF)
 echo "Preparing Gemma-4-e4b ..."
-GEMMA_MODEL_NAME="google/gemma-4-9b-it-e4b"
 GEMMA_LOCAL_DIR="${MODELS_DIR}/gemma-4-e4b"
-
-python - <<PY
-from huggingface_hub import snapshot_download
-snapshot_download(repo_id="${GEMMA_MODEL_NAME}", local_dir="${GEMMA_LOCAL_DIR}", local_dir_use_symlinks=False)
-PY
+mkdir -p "${GEMMA_LOCAL_DIR}"
+# Move the copied GGUF model into the models directory
+if [ ! -f "${GEMMA_LOCAL_DIR}/gemma-4-E4B-it-Q4_K_M.gguf" ] && [ -f "/mnt/c/temp/gemma-4-E4B-it-Q4_K_M.gguf" ]; then
+    sudo cp "/mnt/c/temp/gemma-4-E4B-it-Q4_K_M.gguf" "${GEMMA_LOCAL_DIR}/"
+    sudo chown $USER:$USER "${GEMMA_LOCAL_DIR}/gemma-4-E4B-it-Q4_K_M.gguf"
+fi
 
 # 6. Start vLLM server with both models (multi-model mode)
 echo "Starting vLLM server on port ${VLLM_PORT} ..."
@@ -59,8 +61,8 @@ import os
 
 app = FastAPI()
 
-llm_qwen = LLM(model="/opt/max/models/qwen3-coder-30b", tensor_parallel_size=1)
-llm_gemma = LLM(model="/opt/max/models/gemma-4-e4b", tensor_parallel_size=1)
+llm_qwen = LLM(model="/opt/max/models/qwen2.5-coder-32b", tensor_parallel_size=1)
+llm_gemma = LLM(model="/opt/max/models/gemma-4-e4b/gemma-4-E4B-it-Q4_K_M.gguf", tensor_parallel_size=1)
 
 class InferenceRequest(BaseModel):
     model: str
@@ -70,7 +72,7 @@ class InferenceRequest(BaseModel):
 @app.post("/infer")
 def infer(req: InferenceRequest):
     sp = SamplingParams(max_tokens=req.max_tokens)
-    if req.model == "qwen3-coder-30b":
+    if req.model == "qwen2.5-coder-32b":
         outputs = llm_qwen.generate(req.prompt, sp)
     elif req.model == "gemma-4-e4b":
         outputs = llm_gemma.generate(req.prompt, sp)
@@ -94,14 +96,75 @@ def health():
         "brain_mounted": brain_ok
     }
 
+@app.get("/state/manifest")
+def state_manifest():
+    return {
+        "snapshot": {
+            "id": "SNAP_ID",
+            "timestamp": "SNAP_TIMESTAMP"
+        },
+        "wal": {
+            "start_id": "WAL_START_ID",
+            "end_id": "WAL_END_ID",
+            "events": []
+        },
+        "models": [
+            {
+                "name": "qwen2.5-coder-32b",
+                "version": "1.0.0",
+                "quant": "bf16",
+                "path_hash": "..."
+            },
+            {
+                "name": "gemma-4-e4b",
+                "version": "1.0.0",
+                "quant": "4bit",
+                "path_hash": "..."
+            }
+        ],
+        "services": [
+            {
+                "name": "vllm",
+                "version": "0.6.3.post1",
+                "config_hash": "...",
+                "status": "running"
+            }
+        ],
+        "brain": {
+            "path_hash": "...",
+            "transcript_hash": "..."
+        }
+    }
+
 if __name__ == "__main__":
     port = int(os.environ.get("MAX_VLLM_PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
 PY
 
-python /opt/max/vllm_server.py &
-VLLM_PID=$!
+cat > /etc/systemd/system/max-vllm.service <<EOF
+[Unit]
+Description=MAX vLLM Inference Server
+After=network.target
 
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/max
+Environment="LD_LIBRARY_PATH=/usr/lib/wsl/lib"
+ExecStart=/opt/max/vllm-env/bin/python /opt/max/vllm_server.py
+StandardOutput=append:/opt/max/vllm_server.log
+StandardError=append:/opt/max/vllm_server.log
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable max-vllm
+systemctl restart max-vllm
+
+VLLM_PID=$(systemctl show -p MainPID --value max-vllm)
 # 7. Health check: read transcript.jsonl
 TRANSCRIPT_PATH="${GEMINI_BRAIN_DIR_WSL}/transcript.jsonl"
 echo "Checking transcript at ${TRANSCRIPT_PATH} ..."

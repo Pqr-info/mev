@@ -6,9 +6,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mev-protocol/network/internal/block"
-	"github.com/mev-protocol/network/internal/metrics"
-	"github.com/mev-protocol/network/internal/rpc"
+	"pqr.info/mev/network/internal/block"
+	"pqr.info/mev/network/internal/metrics"
+	"pqr.info/mev/network/internal/rpc"
 	"github.com/rs/zerolog/log"
 )
 

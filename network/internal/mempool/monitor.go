@@ -9,9 +9,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient/gethclient"
-	"github.com/mev-protocol/network/internal/metrics"
-	rpcpool "github.com/mev-protocol/network/internal/rpc"
-	"github.com/mev-protocol/network/internal/strategy"
+	"pqr.info/mev/network/internal/metrics"
+	rpcpool "pqr.info/mev/network/internal/rpc"
+	"pqr.info/mev/network/internal/strategy"
 	"github.com/rs/zerolog/log"
 )
 

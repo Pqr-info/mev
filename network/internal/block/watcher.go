@@ -12,9 +12,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/mev-protocol/network/internal/mempool"
-	"github.com/mev-protocol/network/internal/metrics"
-	"github.com/mev-protocol/network/internal/rpc"
+	"pqr.info/mev/network/internal/mempool"
+	"pqr.info/mev/network/internal/metrics"
+	"pqr.info/mev/network/internal/rpc"
 	"github.com/rs/zerolog/log"
 )
 

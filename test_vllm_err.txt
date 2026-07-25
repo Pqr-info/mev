@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/opt/max/vllm_server.py", line 1, in <module>
+    from vllm import LLM, SamplingParams
+  File "/opt/max/vllm-env/lib/python3.10/site-packages/vllm/__init__.py", line 14, in <module>
+    import vllm.env_override  # noqa: F401
+  File "/opt/max/vllm-env/lib/python3.10/site-packages/vllm/env_override.py", line 87, in <module>
+    import torch
+  File "/opt/max/vllm-env/lib/python3.10/site-packages/torch/__init__.py", line 442, in <module>
+    from torch._C import *  # noqa: F403
+ImportError: /opt/max/vllm-env/lib/python3.10/site-packages/torch/lib/libtorch_cuda.so: undefined symbol: ncclCommWindowDeregister

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thealanphipps-del/pqr/jetweb-core/core/go/pikr"
+	"pqr.info/jetweb-core/core/go/pikr"
 )
 
 func TestSwarmSupervisorSelfHealing(t *testing.T) {

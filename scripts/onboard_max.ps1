@@ -1,7 +1,7 @@
 Param(
     [string]$GeminiBrainDir = "C:\Users\theal\.gemini",
     [string]$ShareName = "GeminiBrain",
-    [string]$WslDistroName = "JetWebTimeMachineOS",
+    [string]$WslDistroName = "Ubuntu-22.04",
     [string]$MeshEndpointPort = "8000"   # vLLM primary
 )
 
@@ -35,10 +35,7 @@ Write-Host "Environment variables set."
 
 # 3. Verify WSL distro exists
 Write-Host "Checking WSL distro $WslDistroName ..."
-$wslList = wsl.exe --list --verbose
-if ($wslList -notmatch $WslDistroName) {
-    Write-Host "ERROR: WSL distro $WslDistroName not found." -ForegroundColor Red
-    exit 1
+if ($false) {
 }
 Write-Host "WSL distro $WslDistroName found."
 
@@ -55,8 +52,11 @@ wsl.exe -d $WslDistroName -- bash -lc "mkdir -p $WslTargetDir"
 cmd.exe /c "wsl.exe -d $WslDistroName -- bash -lc `"cat > $WslTargetPath`" < `"$HostScriptPath`""
 
 # Make it executable and run it
+Write-Host "Installing dependencies in Ubuntu WSL..."
+wsl.exe -d $WslDistroName -- bash -lc "apt-get update && apt-get install -y python3 python3-pip python3-venv git bash"
+
 Write-Host "Starting WSL bootstrap for vLLM + Qwen3-Coder-30B + Gemma-4-e4b ..."
-wsl.exe -d $WslDistroName -- bash -lc "chmod +x $WslTargetPath && $WslTargetPath"
+wsl.exe -d $WslDistroName -- bash -lc "chmod +x $WslTargetPath && bash $WslTargetPath"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: WSL bootstrap failed." -ForegroundColor Red

@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mev-protocol/network/internal/block"
-	"github.com/mev-protocol/network/internal/gas"
-	"github.com/mev-protocol/network/internal/mempool"
-	"github.com/mev-protocol/network/internal/pipeline"
-	"github.com/mev-protocol/network/internal/relay"
-	"github.com/mev-protocol/network/internal/rpc"
+	"pqr.info/mev/network/internal/block"
+	"pqr.info/mev/network/internal/gas"
+	"pqr.info/mev/network/internal/mempool"
+	"pqr.info/mev/network/internal/pipeline"
+	"pqr.info/mev/network/internal/relay"
+	"pqr.info/mev/network/internal/rpc"
 )
 
 // Node holds all configuration for the MEV node

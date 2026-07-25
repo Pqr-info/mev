@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	pb "github.com/mev-protocol/network/internal/strategy/proto"
+	pb "pqr.info/mev/network/internal/strategy/proto"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

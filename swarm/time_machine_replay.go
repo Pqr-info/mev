@@ -87,40 +87,36 @@ func (tm *TimeMachineReplay) EmitReplayEvent(ctx context.Context, ev TemporalEve
 
 // ConsultMothership sends queries directly to the Gemini mothership API using the GCM/Vault-fed key.
 func (tm *TimeMachineReplay) ConsultMothership(ctx context.Context, query string) (string, error) {
-	apiKey := os.Getenv("GEMINI_API_KEY")
-	if apiKey == "" {
-		// Mock response if no key is present (testing fallback)
+	// Fallback to mock if requested
+	if os.Getenv("USE_MOCK_BRAIN") == "true" {
 		return "[MOCK GEMINI] Decision: SAFE. Rationale: Replay segment metrics fall within standard MEV risk bounds.", nil
 	}
 
-	model := os.Getenv("PREDICTIVE_BRAIN_MODEL")
+	model := os.Getenv("HEAVY_BRAIN_MODEL")
 	if model == "" {
-		model = "gemini-3.5-flash"
+		model = "qwen2.5-coder:32b"
 	}
-	host := os.Getenv("PREDICTIVE_BRAIN_HOST")
+	host := os.Getenv("HEAVY_BRAIN_HOST")
 	if host == "" {
-		host = "https://generativelanguage.googleapis.com"
+		host = "http://192.168.12.234:11434"
 	}
 
-	url := fmt.Sprintf("%s/v1beta/models/%s:generateContent?key=%s", host, model, apiKey)
-	
-	type Part struct {
-		Text string `json:"text"`
-	}
-	type Content struct {
-		Parts []Part `json:"parts"`
+	// Assuming Ollama or LM Studio OpenAI-compatible endpoint
+	url := fmt.Sprintf("%s/v1/chat/completions", host)
+
+	type Message struct {
+		Role    string `json:"role"`
+		Content string `json:"content"`
 	}
 	type Payload struct {
-		Contents []Content `json:"contents"`
+		Model    string    `json:"model"`
+		Messages []Message `json:"messages"`
 	}
 
 	body := Payload{
-		Contents: []Content{
-			{
-				Parts: []Part{
-					{Text: query},
-				},
-			},
+		Model: model,
+		Messages: []Message{
+			{Role: "user", Content: query},
 		},
 	}
 
@@ -135,7 +131,13 @@ func (tm *TimeMachineReplay) ConsultMothership(ctx context.Context, query string
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	// Authorization header if needed (e.g. for Gemini OpenAI compatibility API, or generic LM Studio auth)
+	apiKey := os.Getenv("GEMINI_API_KEY")
+	if apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+
+	client := &http.Client{Timeout: 30 * time.Second} // Larger timeout for local models
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", err
@@ -144,26 +146,97 @@ func (tm *TimeMachineReplay) ConsultMothership(ctx context.Context, query string
 
 	if resp.StatusCode != http.StatusOK {
 		respBytes, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("gemini api returned status %s: %s", resp.Status, string(respBytes))
+		return "", fmt.Errorf("local brain returned status %s: %s", resp.Status, string(respBytes))
 	}
 
 	var result struct {
-		Candidates []struct {
-			Content struct {
-				Parts []Part `json:"parts"`
-			} `json:"content"`
-		} `json:"candidates"`
+		Choices []struct {
+			Message Message `json:"message"`
+		} `json:"choices"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return "", err
 	}
 
-	if len(result.Candidates) > 0 && len(result.Candidates[0].Content.Parts) > 0 {
-		return result.Candidates[0].Content.Parts[0].Text, nil
+	if len(result.Choices) > 0 {
+		return result.Choices[0].Message.Content, nil
 	}
 
-	return "", fmt.Errorf("empty response from gemini")
+	return "", fmt.Errorf("empty response from predictive brain")
+}
+
+// ConsultFastBrain sends queries to the Gemma instance hosted on LM Studio (FAST_BRAIN_HOST).
+func (tm *TimeMachineReplay) ConsultFastBrain(ctx context.Context, query string) (string, error) {
+	if os.Getenv("USE_MOCK_BRAIN") == "true" {
+		return "[MOCK GEMMA] Decision: SAFE. Rationale: Replay segment looks fine.", nil
+	}
+
+	model := os.Getenv("FAST_BRAIN_MODEL")
+	if model == "" {
+		model = "gemma2"
+	}
+	host := os.Getenv("FAST_BRAIN_HOST")
+	if host == "" {
+		host = "http://192.168.12.234:1234"
+	}
+
+	url := fmt.Sprintf("%s/v1/chat/completions", host)
+
+	type Message struct {
+		Role    string `json:"role"`
+		Content string `json:"content"`
+	}
+	type Payload struct {
+		Model    string    `json:"model"`
+		Messages []Message `json:"messages"`
+	}
+
+	body := Payload{
+		Model: model,
+		Messages: []Message{
+			{Role: "user", Content: query},
+		},
+	}
+
+	jsonBytes, err := json.Marshal(body)
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second} 
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBytes, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("fast brain returned status %s: %s", resp.Status, string(respBytes))
+	}
+
+	var result struct {
+		Choices []struct {
+			Message Message `json:"message"`
+		} `json:"choices"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+
+	if len(result.Choices) > 0 {
+		return result.Choices[0].Message.Content, nil
+	}
+
+	return "", fmt.Errorf("empty response from fast brain")
 }
 
 // IntelligentBacktest feeds the backtest event summary to Gemma via mothership to assess stability.
@@ -182,5 +255,5 @@ func (tm *TimeMachineReplay) IntelligentBacktest(ctx context.Context, seg Replay
 		summary,
 	)
 	
-	return tm.ConsultMothership(ctx, prompt)
+	return tm.ConsultFastBrain(ctx, prompt)
 }

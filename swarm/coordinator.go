@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"math/big"
+	"net/http"
 	"os"
 	"sync"
 	"time"
@@ -122,7 +123,36 @@ func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
+	// Initialize the Universal Z-Drive (Hetzner SFTP Mount)
+	if err := InitZDriveMount(); err != nil {
+		log.Warn().Err(err).Msg("Z-Drive failed to mount, some storage features may be unavailable")
+	}
+
 	coordinator := NewCoordinator(big.NewInt(10000000000000000), 2.5, "paper")
+
+	// Start MEV bot orchestration (Task MEV-02)
+	StartMEVOrchestrator()
+
+	// Phase 122: Start Telemetry (Prometheus + Atlas Metrics API)
+	metrics := NewMetrics()
+	InitPrometheus()
+
+	// Start Prometheus metrics endpoint asynchronously on 9090
+	go func() {
+		log.Info().Msg("Starting Prometheus metrics on :9090")
+		if err := http.ListenAndServe(":9090", nil); err != nil {
+			log.Error().Err(err).Msg("Prometheus server failed")
+		}
+	}()
+
+	// Phase 119: Start Organ Atlas Mesh Reconciliation Loop
+	atlas := NewOrganAtlas(metrics)
+	nodesCfg := []NodeConfig{
+		{Name: "MAX", Role: RoleInference, BaseURL: "http://192.168.12.234:8000"},
+	}
+	stopCh := make(chan struct{})
+	go atlas.StartLoop(nodesCfg, 5*time.Second, stopCh)
+	defer close(stopCh)
 
 	maxExp, _ := new(big.Int).SetString("100000000000000000000", 10)
 	agent := agents.NewArbitrumArbitrageAgent(
@@ -150,4 +180,44 @@ func main() {
 		}
 		coordinator.ProcessStateIngestion(ctx, state)
 	}
+
+	// Phase 121: Start Atlas API (now injected with metrics)
+	healingStore := NewHealingStore(nil)
+	policyEngine := NewPolicyEngine(healingStore)
+	var safetyEngine interface{}
+	healer := NewHealerAgent(policyEngine, safetyEngine, healingStore)
+	healer.Start()
+	atlasAPI := NewAtlasAPI(atlas, metrics, healer)
+	log.Info().Msg("Starting Atlas API on :8101")
+	go func() {
+		ouroboros := NewOuroborosMonitor()
+	ouroboros.InstallLogHook()
+	ouroboros.Start()
+
+	defer ouroboros.Stop()
+
+	if err := atlasAPI.Serve(":8101"); err != nil {
+			log.Error().Err(err).Msg("Atlas API server failed")
+		}
+	}()
+
+	// Phase 125: Start TimeMachineServer with 5D Router on :8081
+	replayEngine := NewTimeMachineReplay(nil, nil)
+	router5D := NewMeshPredictiveRouter5D(replayEngine)
+	router5D.RegisterNode(PredictiveModelNode{
+		NodeID:   "MAX",
+		Address:  Address5D{X: 1, Y: 1, Z: 0, T: 0, W: 0},
+		IsActive: true,
+		Model:    "gemini-3.5-flash",
+		Endpoint: "http://192.168.12.234:8081",
+	})
+	tmServer := NewTimeMachineServer(replayEngine, 8081)
+	go func() {
+		if err := tmServer.Start(); err != nil {
+			log.Error().Err(err).Msg("TimeMachine server failed")
+		}
+	}()
+
+	// Keep the organism running
+	select {}
 }

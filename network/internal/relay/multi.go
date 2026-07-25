@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/mev-protocol/network/internal/metrics"
+	"pqr.info/mev/network/internal/metrics"
 	"github.com/rs/zerolog/log"
 )
 

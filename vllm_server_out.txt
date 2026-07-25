@@ -1,0 +1,46 @@
+from vllm import LLM, SamplingParams
+from fastapi import FastAPI
+from pydantic import BaseModel
+import uvicorn
+import os
+
+app = FastAPI()
+
+llm_qwen = LLM(model="/opt/max/models/qwen2.5-coder-32b", tensor_parallel_size=1)
+llm_gemma = LLM(model="/opt/max/models/gemma-4-e4b/gemma-4-E4B-it-Q4_K_M.gguf", tensor_parallel_size=1)
+
+class InferenceRequest(BaseModel):
+    model: str
+    prompt: str
+    max_tokens: int = 512
+
+@app.post("/infer")
+def infer(req: InferenceRequest):
+    sp = SamplingParams(max_tokens=req.max_tokens)
+    if req.model == "qwen2.5-coder-32b":
+        outputs = llm_qwen.generate(req.prompt, sp)
+    elif req.model == "gemma-4-e4b":
+        outputs = llm_gemma.generate(req.prompt, sp)
+    else:
+        return {"error": "unknown model"}
+    return {"text": outputs[0].outputs[0].text}
+
+@app.get("/health")
+def health():
+    # Check if models are loaded
+    models_ok = (llm_qwen is not None) and (llm_gemma is not None)
+    
+    # Check brain mount
+    brain_path = "/mnt/c/Users/theal/.gemini/transcript.jsonl"
+    brain_ok = os.path.exists(brain_path)
+    
+    status = "ok" if (models_ok and brain_ok) else "degraded"
+    return {
+        "status": status,
+        "models_loaded": models_ok,
+        "brain_mounted": brain_ok
+    }
+
+if __name__ == "__main__":
+    port = int(os.environ.get("MAX_VLLM_PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)

@@ -11,20 +11,72 @@ import (
 // =========================
 
 type TemporalArbitrageSignal struct {
-	ID                  string            `json:"id"`
-	TemporalIndex       int64             `json:"temporal_index"`
-	SourceMarket        string            `json:"source_market"`
-	TargetMarket        string            `json:"target_market"`
-	ResourceID          string            `json:"resource_id"`
-	TVUSymbol           string            `json:"tvu_symbol"`
-	PriceSpread         float64           `json:"price_spread"`
-	LiquiditySpread     float64           `json:"liquidity_spread"`
-	VolatilitySpread    float64           `json:"volatility_spread"`
-	LatencyDifferential float64           `json:"latency_differential"`
-	HarmonicDelta       HarmonicProfile   `json:"harmonic_delta"`
-	Confidence          float64           `json:"confidence"`
-	Severity            float64           `json:"severity"`
-	Metadata            map[string]string `json:"metadata"`
+	// Identity
+	SignalID     string    `json:"signal_id"`
+	EmittedAt    time.Time `json:"emitted_at"`
+	ChainID      string    `json:"chain_id"`
+	SourceModule string    `json:"source_module"`
+	EventType    string    `json:"event_type"`
+
+	// Swap Context
+	AssetIn        uint32 `json:"asset_in"`
+	AssetOut       uint32 `json:"asset_out"`
+	AmountIn       string `json:"amount_in"`
+	AmountOut      string `json:"amount_out"`
+	SpotPrice      string `json:"spot_price"`
+	SlippageActual string `json:"slippage_actual"`
+
+	// Market Snapshot
+	PoolLiquidityIn  string `json:"pool_liquidity_in"`
+	PoolLiquidityOut string `json:"pool_liquidity_out"`
+	PoolUtilization  string `json:"pool_utilization"`
+	DepthEstimate    string `json:"depth_estimate"`
+
+	// Predictive Metadata
+	VolatilityBand struct {
+		SigmaShort  string `json:"sigma_short"`
+		SigmaMedium string `json:"sigma_medium"`
+		SigmaLong   string `json:"sigma_long"`
+		Regime      string `json:"regime"`
+	} `json:"volatility_band"`
+
+	SlippageForecast struct {
+		ExpectedSlippageBp int    `json:"expected_slippage_bp"`
+		MaxSizeBeforeCliff string `json:"max_size_before_cliff"`
+		Confidence         string `json:"confidence"`
+	} `json:"slippage_forecast"`
+
+	SpreadForecast struct {
+		ExpectedSpreadBp     int    `json:"expected_spread_bp"`
+		MeanReversionHorizon string `json:"mean_reversion_horizon"`
+		BreakoutProbability  string `json:"breakout_probability"`
+	} `json:"spread_forecast"`
+
+	// Harmonic Resonance
+	HarmonicDelta struct {
+		PhaseOffset    string `json:"phase_offset"`
+		CycleID        string `json:"cycle_id"`
+		ResonanceScore string `json:"resonance_score"`
+		TemporalBucket string `json:"temporal_bucket"`
+	} `json:"harmonic_delta"`
+
+	// Routing Hints
+	RoutingHints struct {
+		PreferredVenue     string   `json:"preferred_venue"`
+		AlternateVenues    []string `json:"alternate_venues"`
+		BridgePath         []string `json:"bridge_path"`
+		EstimatedLatencyMs int      `json:"estimated_latency_ms"`
+		GasCostEstimateUsd string   `json:"gas_cost_estimate_usd"`
+		PriorityScore      int      `json:"priority_score"`
+	} `json:"routing_hints"`
+
+	// Behavioral Context (Optional)
+	BuyerProfile struct {
+		Segment           string `json:"segment"`
+		HistoricalHitRate string `json:"historical_hit_rate"`
+		TypicalSize       string `json:"typical_size"`
+	} `json:"buyer_profile"`
+	Metadata map[string]string `json:"metadata"`
 }
 
 type ArbitrageOpportunity struct {
@@ -286,15 +338,15 @@ func (e *DefaultTemporalArbitrageEngine) ScanAndPlan(
 
 	for _, sig := range scanResult.Signals {
 		_ = e.eventLog.IngestEvent(ctx, ArbitrageEvent{
-			EventID:       "sig-" + sig.ID,
-			TemporalIndex: sig.TemporalIndex,
+			EventID:       "sig-" + sig.SignalID,
+			TemporalIndex: sig.EmittedAt.Unix(),
 			Type:          ArbitrageEventSignalDetected,
 			Coordinate: TemporalCoordinate{
 				LogicalTick: 0,
 				WallClock:   time.Now(),
 				Epoch:       "Phase92",
 			},
-			Payload: map[string]any{"signal_id": sig.ID},
+			Payload: map[string]any{"signal_id": sig.SignalID},
 		})
 	}
 
@@ -418,7 +470,7 @@ func NewInMemoryArbitrageRegistry() *InMemoryArbitrageRegistry {
 func (r *InMemoryArbitrageRegistry) StoreSignal(ctx context.Context, signal TemporalArbitrageSignal) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.signals[signal.TemporalIndex] = append(r.signals[signal.TemporalIndex], signal)
+	r.signals[signal.EmittedAt.Unix()] = append(r.signals[signal.EmittedAt.Unix()], signal)
 	return nil
 }
 

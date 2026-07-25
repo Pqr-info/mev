@@ -1,0 +1,8 @@
+ Volume in drive C is OS
+ Volume Serial Number is 9869-41F7
+
+ Directory of C:\temp
+
+07/21/2026  02:20 PM     5,335,289,664 gemma-4-E4B-it-Q4_K_M.gguf
+               1 File(s)  5,335,289,664 bytes
+               0 Dir(s)  738,075,930,624 bytes free

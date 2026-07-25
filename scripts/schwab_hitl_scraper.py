@@ -15,7 +15,7 @@ import asyncio
 from playwright.async_api import async_playwright
 
 # State paths matching schwab_paper_api.py
-CURRENT_BRAIN_DIR = r"C:\Users\theal\.gemini\antigravity\brain\c431ba66-329c-4cff-9571-25470fef9831"
+CURRENT_BRAIN_DIR = r"C:\Users\theal\.gemini\antigravity\brain\9d35ca65-e535-454e-86d3-b48e41fc4998"
 LEGACY_BRAIN_DIR = r"C:\Users\theal\.gemini\antigravity-cli\brain\27cc7b87-864e-4692-aae4-745760bc1eb9"
 
 SCHWAB_SUMMARY_URL = "https://client.schwab.com/app/accounts/summary"

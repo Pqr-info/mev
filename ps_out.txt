@@ -1,0 +1,27 @@
+USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root           1  0.6  0.0 165976 11368 ?        Ss   14:50   0:00 /sbin/init
+root           2  0.0  0.0   3180  2148 hvc0     Sl+  14:50   0:00 /init
+root           6  0.0  0.0   3180  2044 hvc0     Sl+  14:50   0:00 plan9 --control-socket 7 --log-level 4 --server-fd 8 --pipe-fd 10 --log-truncate
+root          55  0.1  0.0  31360 11904 ?        S<s  14:50   0:00 /lib/systemd/systemd-journald
+root          82  0.3  0.0  22980  6100 ?        Ss   14:50   0:00 /lib/systemd/systemd-udevd
+systemd+      97  0.1  0.0  26208 14496 ?        Ss   14:50   0:00 /lib/systemd/systemd-resolved
+systemd+     110  0.0  0.0  89372  7560 ?        Ssl  14:50   0:00 /lib/systemd/systemd-timesyncd
+root         199  0.0  0.0   4316  2876 ?        Ss   14:50   0:00 /usr/sbin/cron -f -P
+message+     201  0.0  0.0   8596  4976 ?        Ss   14:50   0:00 @dbus-daemon --system --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only
+root         206  0.0  0.0  30072 19816 ?        Ss   14:50   0:00 /usr/bin/python3 /usr/bin/networkd-dispatcher --run-startup-triggers
+syslog       207  0.0  0.0 222412  5600 ?        Ssl  14:50   0:00 /usr/sbin/rsyslogd -n -iNONE
+root         210  0.0  0.0  15336  7748 ?        Ss   14:50   0:00 /lib/systemd/systemd-logind
+root         238  0.0  0.0   3204  2276 tty1     Ss+  14:50   0:00 /sbin/agetty -o -p -- \u --noclear tty1 linux
+root         246  0.0  0.0 107152 22072 ?        Ssl  14:50   0:00 /usr/bin/python3 /usr/share/unattended-upgrades/unattended-upgrade-shutdown --wait-for-signal
+root         306  0.0  0.0   7488  4956 pts/1    Ss   14:50   0:00 /bin/login -f
+root         349  0.0  0.0  17052  9724 ?        Ss   14:50   0:00 /lib/systemd/systemd --user
+root         350  0.0  0.0 169032  5024 ?        S    14:50   0:00 (sd-pam)
+root         361  0.0  0.0   6112  5204 pts/1    S+   14:50   0:00 -bash
+root         641  0.0  0.0 293044 20684 ?        Ssl  14:50   0:00 /usr/libexec/packagekitd
+root         647  0.0  0.0 234516  7624 ?        Ssl  14:50   0:00 /usr/libexec/polkitd --no-debug
+root         789  0.0  0.0   3180  1116 ?        Ss   14:51   0:00 /init
+root         790  0.0  0.0  22980  3640 ?        S    14:51   0:00 /lib/systemd/systemd-udevd
+root         791  0.0  0.0   3196  1188 ?        S    14:51   0:00 /init
+root         792  0.0  0.0  22980  3640 ?        S    14:51   0:00 /lib/systemd/systemd-udevd
+root         793  0.0  0.0  22980  3640 ?        S    14:51   0:00 /lib/systemd/systemd-udevd
+root         794  0.0  0.0   7492  3356 pts/0    Rs+  14:51   0:00 ps aux

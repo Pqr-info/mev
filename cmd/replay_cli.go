@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"log"
 	"os"
@@ -10,7 +9,6 @@ import (
 	"time"
 
 	"pqr.info/mev/news"
-	"pqr.info/mev/swarm" // assuming packages exist or will be properly structured
 )
 
 // A dummy package alias because main can't easily import from sibling if they are all main.
@@ -19,7 +17,7 @@ import (
 func main() {
 	dateStr := flag.String("date", time.Now().Format("2006-01-02"), "Date to replay (YYYY-MM-DD)")
 	speed := flag.Float64("speed", 1.0, "Replay speed")
-	port := flag.Int("port", 8080, "Port for replay server")
+	// port := flag.Int("port", 8100, "Port for replay server")
 	newsDBPath := flag.String("news-db", "data/news.db", "Path to news sqlite database")
 	flag.Parse()
 
@@ -43,17 +41,7 @@ func main() {
 	log.Printf("News provider initialized with DB: %s", *newsDBPath)
 	_ = newsProvider
 
-	// server := swarm.NewTimeMachineServer(replay, *port)
-	// go func() {
-	// 	if err := server.Start(); err != nil {
-	// 		log.Fatal(err)
-	// 	}
-	// }()
-
 	// Wait for interrupt
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 

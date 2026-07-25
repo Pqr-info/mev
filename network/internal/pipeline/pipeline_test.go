@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/mev-protocol/network/internal/mempool"
+	"pqr.info/mev/network/internal/mempool"
 )
 
 func TestClassifyTx_SwapV2(t *testing.T) {

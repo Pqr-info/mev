@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"pqr.info/mev/governance"
-	"github.com/thealanphipps-del/pqr/jetweb-core/core/go/pikr"
+	"pqr.info/jetweb-core/core/go/pikr"
 )
 
 // ==========================================

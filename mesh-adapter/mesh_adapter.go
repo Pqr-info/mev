@@ -198,23 +198,23 @@ func (a *Adapter) refreshManifest() {
 	}
 	a.manifest["lastUpdated"] = time.Now().UTC().Format(time.RFC3339)
 	a.manifest["endpoints"] = map[string]interface{}{
-		"health":             "http://localhost:8080/health",
+		"health":             "http://localhost:8100/health",
 		"metrics":            "http://localhost:9091/metrics",
 		"prometheus":         "http://localhost:9090",
 		"grafana":            "http://localhost:3000",
-		"ticketApi":          "http://localhost:8080/rt/REST/2.0/tickets",
-		"timeslipGen":        "http://localhost:8080/timeslip-generator",
-		"recovery":           "http://localhost:8080/healer/trigger-recovery",
-		"agentsGemini":       "http://localhost:8080/agents/gemini",
-		"help":               "http://localhost:8080/help",
-		"consensusProposal":  "http://localhost:8080/consensus/proposal",
-		"consensusVote":      "http://localhost:8080/consensus/vote",
-		"consensusProposals": "http://localhost:8080/consensus/proposals",
-		"governanceLineage":  "http://localhost:8080/governance/lineage",
-		"consensusRollback":  "http://localhost:8080/consensus/rollback",
-		"governanceSimulate": "http://localhost:8080/governance/simulate",
-		"governanceMetrics":  "http://localhost:8080/governance/metrics",
-		"governanceForecast": "http://localhost:8080/governance/forecast",
+		"ticketApi":          "http://localhost:8100/rt/REST/2.0/tickets",
+		"timeslipGen":        "http://localhost:8100/timeslip-generator",
+		"recovery":           "http://localhost:8100/healer/trigger-recovery",
+		"agentsGemini":       "http://localhost:8100/agents/gemini",
+		"help":               "http://localhost:8100/help",
+		"consensusProposal":  "http://localhost:8100/consensus/proposal",
+		"consensusVote":      "http://localhost:8100/consensus/vote",
+		"consensusProposals": "http://localhost:8100/consensus/proposals",
+		"governanceLineage":  "http://localhost:8100/governance/lineage",
+		"consensusRollback":  "http://localhost:8100/consensus/rollback",
+		"governanceSimulate": "http://localhost:8100/governance/simulate",
+		"governanceMetrics":  "http://localhost:8100/governance/metrics",
+		"governanceForecast": "http://localhost:8100/governance/forecast",
 	}
 	a.manifest["hosts"] = map[string]interface{}{
 		"primary": os.Getenv("SOS_HOSTNAME"),
@@ -492,7 +492,7 @@ func (a *Adapter) handleGemini(w http.ResponseWriter, r *http.Request) {
 
 	bcpdURL := os.Getenv("BCPD_URL")
 	if bcpdURL == "" {
-		bcpdURL = "http://localhost:8080"
+		bcpdURL = "http://localhost:8100"
 	}
 
 	// Create intent payload
@@ -635,7 +635,7 @@ func (a *Adapter) handleHelp(w http.ResponseWriter, r *http.Request) {
 
 	bcpdURL := os.Getenv("BCPD_URL")
 	if bcpdURL == "" {
-		bcpdURL = "http://localhost:8080"
+		bcpdURL = "http://localhost:8100"
 	}
 
 	intentPayload := map[string]interface{}{
@@ -694,7 +694,7 @@ func (a *Adapter) handleConsensusProposal(w http.ResponseWriter, r *http.Request
 
 	bcpdURL := os.Getenv("BCPD_URL")
 	if bcpdURL == "" {
-		bcpdURL = "http://localhost:8080"
+		bcpdURL = "http://localhost:8100"
 	}
 
 	client := &http.Client{Timeout: 5 * time.Second}
@@ -721,7 +721,7 @@ func (a *Adapter) handleConsensusVote(w http.ResponseWriter, r *http.Request) {
 
 	bcpdURL := os.Getenv("BCPD_URL")
 	if bcpdURL == "" {
-		bcpdURL = "http://localhost:8080"
+		bcpdURL = "http://localhost:8100"
 	}
 
 	client := &http.Client{Timeout: 5 * time.Second}
@@ -748,7 +748,7 @@ func (a *Adapter) handleConsensusProposals(w http.ResponseWriter, r *http.Reques
 
 	bcpdURL := os.Getenv("BCPD_URL")
 	if bcpdURL == "" {
-		bcpdURL = "http://localhost:8080"
+		bcpdURL = "http://localhost:8100"
 	}
 
 	client := &http.Client{Timeout: 5 * time.Second}
@@ -806,7 +806,7 @@ func (a *Adapter) handleGovernanceLineage(w http.ResponseWriter, r *http.Request
 
 	bcpdURL := os.Getenv("BCPD_URL")
 	if bcpdURL == "" {
-		bcpdURL = "http://localhost:8080"
+		bcpdURL = "http://localhost:8100"
 	}
 
 	client := &http.Client{Timeout: 5 * time.Second}
@@ -833,7 +833,7 @@ func (a *Adapter) handleConsensusRollback(w http.ResponseWriter, r *http.Request
 
 	bcpdURL := os.Getenv("BCPD_URL")
 	if bcpdURL == "" {
-		bcpdURL = "http://localhost:8080"
+		bcpdURL = "http://localhost:8100"
 	}
 
 	client := &http.Client{Timeout: 5 * time.Second}
@@ -860,7 +860,7 @@ func (a *Adapter) handleGovernanceSimulate(w http.ResponseWriter, r *http.Reques
 
 	bcpdURL := os.Getenv("BCPD_URL")
 	if bcpdURL == "" {
-		bcpdURL = "http://localhost:8080"
+		bcpdURL = "http://localhost:8100"
 	}
 
 	client := &http.Client{Timeout: 35 * time.Second}
@@ -887,7 +887,7 @@ func (a *Adapter) handleGovernanceMetrics(w http.ResponseWriter, r *http.Request
 
 	bcpdURL := os.Getenv("BCPD_URL")
 	if bcpdURL == "" {
-		bcpdURL = "http://localhost:8080"
+		bcpdURL = "http://localhost:8100"
 	}
 
 	client := &http.Client{Timeout: 5 * time.Second}
@@ -914,7 +914,7 @@ func (a *Adapter) handleGovernanceForecast(w http.ResponseWriter, r *http.Reques
 
 	bcpdURL := os.Getenv("BCPD_URL")
 	if bcpdURL == "" {
-		bcpdURL = "http://localhost:8080"
+		bcpdURL = "http://localhost:8100"
 	}
 
 	client := &http.Client{Timeout: 35 * time.Second}

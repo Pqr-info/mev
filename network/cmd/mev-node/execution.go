@@ -11,11 +11,11 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	gethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/mev-protocol/network/internal/gas"
-	"github.com/mev-protocol/network/internal/relay"
-	"github.com/mev-protocol/network/internal/rpc"
-	pb "github.com/mev-protocol/network/internal/strategy/proto"
-	"github.com/mev-protocol/network/pkg/config"
+	"pqr.info/mev/network/internal/gas"
+	"pqr.info/mev/network/internal/relay"
+	"pqr.info/mev/network/internal/rpc"
+	pb "pqr.info/mev/network/internal/strategy/proto"
+	"pqr.info/mev/network/pkg/config"
 	"github.com/rs/zerolog/log"
 )
 

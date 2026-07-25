@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package gshell;
+
+option go_package = "pqr.info/mev/swarm/proto;proto";
+
+message HandshakeRequest {
+  string sender_id = 1;
+  string message = 2;
+}
+
+message HandshakeResponse {
+  string receiver_id = 1;
+  string status = 2;
+}
+
+service GeminiService {
+  rpc Handshake (HandshakeRequest) returns (HandshakeResponse);
+}

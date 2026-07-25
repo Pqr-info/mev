@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  sovereign27-node:
+    image: parity/polkadot:latest
+    container_name: sovereign27-nuremberg
+    command:
+      - "--chain=sovereign27"
+      - "--name=NurembergPeer"
+      - "--ws-port=9944"
+      - "--rpc-port=9933"
+      - "--unsafe-ws-external"
+      - "--unsafe-rpc-external"
+      - "--validator"
+    ports:
+      - "9933:9933"
+      - "9944:9944"
+    restart: unless-stopped
+    volumes:
+      - ./data:/polkadot
