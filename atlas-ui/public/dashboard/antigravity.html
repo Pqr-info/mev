@@ -1,0 +1,1535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Antigravity sinkorswim [Paper Terminal]</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+        :root {
+            --bg-deep: #05070a;
+            --bg-panel: #0b0f17;
+            --bg-surface: #121824;
+            --bg-interactive: #1a2336;
+            --border: #1e293b;
+            --border-active: #3b82f6;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #475569;
+            
+            /* Signature Antigravity Neon Palette */
+            --neon-blue: #00d2ff;
+            --neon-purple: #c084fc;
+            --neon-green: #10b981;
+            --neon-red: #ef4444;
+            --neon-yellow: #fbbf24;
+            
+            --font-mono: 'JetBrains Mono', monospace;
+            --font-sans: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            font-size: 12px;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* ═══ GLOW EFFECTS ═══ */
+        .ambient-glow {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            filter: blur(140px);
+            opacity: 0.12;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .glow-1 {
+            background: var(--neon-blue);
+            top: -100px;
+            right: 15%;
+        }
+        .glow-2 {
+            background: var(--neon-purple);
+            bottom: -150px;
+            left: 10%;
+        }
+
+        /* ═══ HEADER / HUD ═══ */
+        header {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 24px;
+            background: rgba(11, 15, 23, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-logo {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 13px;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(0, 210, 255, 0.4);
+        }
+
+        .brand-name {
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+        }
+        .brand-name span {
+            color: var(--neon-blue);
+            font-weight: 500;
+        }
+
+        .hud-stats {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            border-left: 1px solid var(--border);
+            padding-left: 18px;
+        }
+
+        .hud-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .hud-label {
+            font-size: 9px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .hud-val {
+            font-size: 13px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+        }
+        .hud-val.up { color: var(--neon-green); }
+        .hud-val.down { color: var(--neon-red); }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .conn-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            padding: 4px 10px;
+            border-radius: 20px;
+            color: var(--neon-green);
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .conn-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: var(--neon-green);
+            box-shadow: 0 0 8px var(--neon-green);
+            animation: pulse-glow 1.5s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0% { opacity: 0.4; }
+            50% { opacity: 1; }
+            100% { opacity: 0.4; }
+        }
+
+        /* ═══ MAIN WORKSPACE ═══ */
+        .workspace-grid {
+            position: relative;
+            z-index: 5;
+            display: grid;
+            grid-template-columns: 240px 1fr 340px;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+
+        /* Sidebar (Left) */
+        aside.left-sidebar {
+            background: var(--bg-panel);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar-section {
+            border-bottom: 1px solid var(--border);
+            padding: 14px;
+        }
+
+        .sidebar-title {
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .watchlist-container {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .watchlist-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 10px;
+            background: rgba(26, 35, 54, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .watchlist-item:hover {
+            border-color: var(--border-active);
+            background: rgba(59, 130, 246, 0.08);
+            transform: translateX(2px);
+        }
+        .watchlist-item.active {
+            border-color: var(--border-active);
+            background: rgba(59, 130, 246, 0.12);
+        }
+
+        .wl-symbol {
+            font-weight: 700;
+            font-family: var(--font-mono);
+            color: var(--text-primary);
+        }
+        .wl-price-change {
+            font-family: var(--font-mono);
+            text-align: right;
+        }
+        .wl-price {
+            font-size: 11px;
+            font-weight: 600;
+            display: block;
+        }
+        .wl-pct {
+            font-size: 9px;
+            font-weight: 500;
+        }
+        .text-up { color: var(--neon-green); }
+        .text-down { color: var(--neon-red); }
+
+        /* Consensus Node Status Grid */
+        .consensus-node-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .consensus-node {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 10px;
+            border-radius: 6px;
+            background: rgba(18, 24, 36, 0.4);
+            border: 1px solid var(--border);
+        }
+        .node-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .node-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .node-dot.approve { background: var(--neon-green); box-shadow: 0 0 6px var(--neon-green); }
+        .node-dot.reject { background: var(--neon-red); box-shadow: 0 0 6px var(--neon-red); }
+        .node-dot.pending { background: var(--neon-yellow); box-shadow: 0 0 6px var(--neon-yellow); }
+        .node-dot.abstain { background: var(--text-muted); }
+        .node-name {
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+        .node-vote {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            text-transform: uppercase;
+        }
+        .node-vote.approve { color: var(--neon-green); background: rgba(16, 185, 129, 0.1); }
+        .node-vote.reject { color: var(--neon-red); background: rgba(239, 68, 68, 0.1); }
+        .node-vote.pending { color: var(--neon-yellow); background: rgba(251, 191, 36, 0.1); }
+        .node-vote.abstain { color: var(--text-secondary); background: rgba(148, 163, 184, 0.1); }
+
+        /* Center Display Area */
+        main.center-workspace {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border-right: 1px solid var(--border);
+        }
+
+        .tab-bar {
+            background: var(--bg-panel);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            gap: 4px;
+        }
+
+        .tab-button {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 10px 20px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+        .tab-button:hover {
+            color: var(--text-primary);
+        }
+        .tab-button.active {
+            color: var(--neon-blue);
+            border-bottom-color: var(--neon-blue);
+            background: rgba(26, 35, 54, 0.25);
+        }
+
+        .main-content {
+            flex-grow: 1;
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .tab-content {
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+            height: 100%;
+        }
+        .tab-content.active {
+            display: flex;
+        }
+
+        /* ═══ CHART WIDGET ═══ */
+        .chart-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            position: relative;
+        }
+
+        .chart-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .chart-meta-left {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+        }
+
+        .chart-symbol {
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--neon-yellow);
+        }
+        .chart-indicator {
+            font-size: 10px;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            height: 240px;
+            background: #06090f;
+            border: 1px solid rgba(30, 41, 59, 0.5);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        canvas#priceChart {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ═══ OPTION CHAIN WIDGET ═══ */
+        .options-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .options-header {
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 6px;
+        }
+
+        .options-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            text-align: center;
+        }
+
+        .options-table th {
+            color: var(--text-secondary);
+            font-weight: 600;
+            padding: 6px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(18, 24, 36, 0.4);
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        .options-table td {
+            padding: 7px 4px;
+            border-bottom: 1px solid rgba(30, 41, 59, 0.3);
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+        .options-table td.clickable-cell:hover {
+            background: rgba(59, 130, 246, 0.15);
+            color: #fff;
+        }
+
+        .options-table td.strike-cell {
+            background: rgba(30, 41, 59, 0.4);
+            color: var(--neon-yellow);
+            font-weight: 700;
+            cursor: default;
+        }
+
+        /* MEMPOOL TAB LOGS */
+        .log-terminal {
+            flex-grow: 1;
+            background: #020408;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            line-height: 1.5;
+            color: #10b981;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .log-entry span.tag {
+            color: var(--neon-blue);
+        }
+        .log-entry span.time {
+            color: var(--text-muted);
+        }
+
+        /* ═══ RIGHT PANEL (Trading Desk) ═══ */
+        aside.trading-desk {
+            background: var(--bg-panel);
+            border-left: 1px solid var(--border);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+        }
+
+        .desk-section-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        /* Order Form styles */
+        .order-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .form-row {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-row label {
+            font-size: 10px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .tos-input, .tos-select {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: 12px;
+            outline: none;
+            width: 100%;
+            transition: border-color 0.2s;
+        }
+        .tos-input:focus, .tos-select:focus {
+            border-color: var(--border-active);
+        }
+
+        .buy-sell-toggle {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 3px;
+        }
+
+        .toggle-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-weight: 700;
+            padding: 6px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .toggle-btn.active.buy {
+            background: var(--neon-green);
+            color: #fff;
+        }
+        .toggle-btn.active.sell {
+            background: var(--neon-red);
+            color: #fff;
+        }
+
+        .submit-btn {
+            padding: 10px;
+            font-weight: 800;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #fff;
+            font-size: 12px;
+            transition: opacity 0.2s;
+        }
+        .submit-btn.buy {
+            background: var(--neon-green);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+        }
+        .submit-btn.sell {
+            background: var(--neon-red);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+        }
+        .submit-btn:hover {
+            opacity: 0.9;
+        }
+
+        /* Holdings statement */
+        .holdings-container {
+            flex-grow: 1;
+            overflow-x: auto;
+        }
+
+        .holdings-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-mono);
+            font-size: 11px;
+        }
+
+        .holdings-table th {
+            color: var(--text-secondary);
+            text-align: left;
+            padding: 6px 4px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .holdings-table td {
+            padding: 8px 4px;
+            border-bottom: 1px solid rgba(30, 41, 59, 0.3);
+        }
+
+        .holdings-table tr:hover {
+            background: rgba(30, 41, 59, 0.2);
+        }
+
+        .btn-liq {
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--neon-red);
+            padding: 2px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 9px;
+            font-weight: 700;
+        }
+        .btn-liq:hover {
+            background: var(--neon-red);
+            color: #fff;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+
+    <!-- HUD Header -->
+    <header>
+        <div class="header-left">
+            <div class="brand-container">
+                <div class="brand-logo">A</div>
+                <div class="brand-name">Antigravity <span>sinkorswim</span></div>
+            </div>
+            <div class="hud-stats">
+                <div class="hud-item">
+                    <span class="hud-label">Net Liq</span>
+                    <span class="hud-val" id="netLiqValue">$114,995.70</span>
+                </div>
+                <div class="hud-item">
+                    <span class="hud-label">Day Gain</span>
+                    <span class="hud-val up" id="dayGainValue">+$0.00 (+0.00%)</span>
+                </div>
+                <div class="hud-item">
+                    <span class="hud-label">Cash & Sweep</span>
+                    <span class="hud-val" id="cashValue">$114,995.70</span>
+                </div>
+                <div class="hud-item">
+                    <span class="hud-label">Options Buying Power</span>
+                    <span class="hud-val" id="bpValue">$114,995.70</span>
+                </div>
+                <div class="hud-item">
+                    <span class="hud-label">Consensus Leverage</span>
+                    <span class="hud-val" id="leverageValue">0.00 / 3.00</span>
+                </div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="conn-badge">
+                <div class="conn-dot"></div>
+                <span>REAL-TIME SIM</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Workspace -->
+    <div class="workspace-grid">
+        
+        <!-- Left Sidebar -->
+        <aside class="left-sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-title">
+                    <span>Watchlist</span>
+                </div>
+                <div class="watchlist-container" id="watchlist">
+                    <!-- Tickers populated dynamically -->
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-title">
+                    <span>Consensus Grid</span>
+                </div>
+                <div class="consensus-node-list" id="consensusNodes">
+                    <!-- Voting nodes populated dynamically -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- Center Workspace -->
+        <main class="center-workspace">
+            <div class="tab-bar">
+                <button class="tab-button active" onclick="switchTab('charts-tab')">Charts</button>
+                <button class="tab-button" onclick="switchTab('options-tab')">Option Chain</button>
+                <button class="tab-button" onclick="switchTab('mempool-tab')">Mempool Logs</button>
+                <button class="tab-button" onclick="switchTab('lineage-tab')">Lineage History</button>
+                <button class="tab-button" onclick="switchTab('temporal-tab')">Temporal Memory</button>
+                <button class="tab-button" onclick="switchTab('gov-tab')">Temporal Governance</button>
+            </div>
+
+            <div class="main-content">
+                <!-- Charts Tab -->
+                <div class="tab-content active" id="charts-tab">
+                    <div class="chart-card">
+                        <div class="chart-info">
+                            <div class="chart-meta-left">
+                                <span class="chart-symbol" id="chartSymbol">TXN</span>
+                                <span class="chart-indicator">SMA(20): <span id="smaVal">308.20</span></span>
+                            </div>
+                            <div style="font-family: var(--font-mono); font-size: 10px; color: var(--text-secondary);">
+                                D1 CANDLES
+                            </div>
+                        </div>
+                        <div class="canvas-wrapper">
+                            <canvas id="priceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Option Chain Tab -->
+                <div class="tab-content" id="options-tab">
+                    <div class="options-card">
+                        <div class="options-header" id="chainTitle">Option Chain (17 JUL 26)</div>
+                        <table class="options-table">
+                            <thead>
+                                <tr>
+                                    <th>Call Bid</th>
+                                    <th>Call Ask</th>
+                                    <th style="background: rgba(30, 41, 59, 0.5); color: var(--neon-yellow);">Strike</th>
+                                    <th>Put Bid</th>
+                                    <th>Put Ask</th>
+                                </tr>
+                            </thead>
+                            <tbody id="optionsChainBody">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Mempool Logs Tab -->
+                <div class="tab-content" id="mempool-tab">
+                    <div class="log-terminal" id="logTerminal">
+                        <!-- Streaming logs -->
+                    </div>
+                </div>
+
+                <!-- Lineage History Tab -->
+                <div class="tab-content" id="lineage-tab">
+                    <div class="options-card">
+                        <div class="options-header">Temporal Trading Lineage</div>
+                        <table class="options-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Symbol</th>
+                                    <th>Qty</th>
+                                    <th>Kind</th>
+                                    <th>Verdict</th>
+                                    <th>Rationale</th>
+                                    <th>Lineage ID</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lineageHistoryBody">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                <!-- Temporal Memory Tab -->
+                <div class="tab-content" id="temporal-tab">
+                    <div class="options-card">
+                        <div class="options-header">Temporal Introspection Substrate</div>
+                        
+                        <!-- Time travel slider control -->
+                        <div style="margin: 15px; padding: 15px; background: var(--bg-card); border: 1px solid var(--border-neon); border-radius: 4px;">
+                            <label style="display:block; margin-bottom: 8px; font-weight: 700; color: var(--neon-yellow);">Time-Travel Epoch Slider:</label>
+                            <input type="range" id="temporalRange" min="0" max="0" value="0" style="width: 100%; accent-color: var(--neon-cyan);" oninput="onTimeTravelSliderChange(this.value)">
+                            <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 11px; margin-top: 6px;">
+                                <span id="timeTravelSelectedTime">Epoch: Genesis</span>
+                                <span id="timeTravelSelectedHash">Hash: genesis</span>
+                            </div>
+                        </div>
+
+                        <!-- Diff Viewer panel -->
+                        <div style="margin: 15px; padding: 15px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); border-radius: 4px; display: flex; flex-direction: column; gap: 8px;">
+                            <div style="font-weight:700; color: var(--neon-cyan);">Snapshot State Comparison:</div>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <select id="diffFromSelect" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color); padding: 4px;"></select>
+                                <span>to</span>
+                                <select id="diffToSelect" style="background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-color); padding: 4px;"></select>
+                                <button class="btn-liq" style="padding: 4px 12px;" onclick="compareSnapshots()">Compare</button>
+                            </div>
+                            <div id="diffResults" style="font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); white-space: pre-wrap; margin-top: 8px;">
+                                Select snapshots and click compare to run temporal diff...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Temporal Governance Tab -->
+                <div class="tab-content" id="gov-tab">
+                    <div class="options-card">
+                        <div class="options-header">Temporal Constitutional Governance</div>
+                        <div style="padding: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 12px; border-radius: 4px;">
+                                <h3 style="color: var(--neon-cyan); margin-top: 0; font-size: 14px;">Active Constraints</h3>
+                                <ul style="margin: 0; padding-left: 20px; font-size: 12px; line-height: 1.6; color: var(--text-primary);">
+                                    <li>Max Exposure Drift: <strong style="color: var(--neon-yellow);">15%</strong> (Window: 5 epochs)</li>
+                                    <li>Leverage Oscillation Limit: <strong style="color: var(--neon-yellow);">0.50 ΔL</strong> (Window: 5 epochs)</li>
+                                    <li>Risk Delta Stability: <strong style="color: var(--neon-yellow);">0.10 Max Δ</strong> (Window: 5 epochs)</li>
+                                    <li>Cash Floor Persistence: <strong style="color: var(--neon-yellow);">3 epochs Max</strong></li>
+                                </ul>
+                            </div>
+                            <div style="background: var(--bg-card); border: 1px solid var(--border-color); padding: 12px; border-radius: 4px;">
+                                <h3 style="color: var(--neon-cyan); margin-top: 0; font-size: 14px;">Organism Self-Correction Proposals</h3>
+                                <div style="max-height: 150px; overflow-y: auto;">
+                                    <table class="options-table" style="font-size: 11px;">
+                                        <thead>
+                                            <tr>
+                                                <th>Epoch ID</th>
+                                                <th>Action</th>
+                                                <th>Verdict</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="govProposalsBody">
+                                            <tr>
+                                                <td colspan="3" style="text-align: center; color: var(--text-secondary);">No violations detected</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Side: Order Desk -->
+        <aside class="trading-desk">
+            <div class="desk-section-title">Order Entry</div>
+            <div class="order-form">
+                <div class="buy-sell-toggle">
+                    <button class="toggle-btn active buy" id="actionBuyBtn" onclick="setOrderAction('BUY')">BUY</button>
+                    <button class="toggle-btn sell" id="actionSellBtn" onclick="setOrderAction('SELL')">SELL</button>
+                </div>
+                
+                <div class="form-row">
+                    <label>Ticker</label>
+                    <input type="text" class="tos-input" id="orderSymbol" value="TXN" style="text-transform: uppercase;">
+                </div>
+
+                <div class="form-row">
+                    <label>Contracts / Shares</label>
+                    <input type="number" class="tos-input" id="orderQty" value="10" min="1">
+                </div>
+
+                <div class="form-row">
+                    <label>Order Type</label>
+                    <select class="tos-select" id="orderType">
+                        <option value="MARKET">Market</option>
+                        <option value="LIMIT">Limit</option>
+                    </select>
+                </div>
+
+                <div class="form-row" id="limitPriceRow" style="display: none;">
+                    <label>Limit Price</label>
+                    <input type="number" class="tos-input" id="limitPrice" value="0.00" step="0.01">
+                </div>
+
+                <button class="submit-btn buy" id="submitOrderBtn" onclick="submitOrder()">Submit Buy Order</button>
+            </div>
+
+            <div class="desk-section-title" style="margin-top: 10px;">Holdings Statement</div>
+            <div class="holdings-container">
+                <table class="holdings-table">
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Qty</th>
+                            <th>Cost</th>
+                            <th>P&L</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="holdingsBody">
+                        <!-- Polled from API -->
+                    </tbody>
+                </table>
+            </div>
+        </aside>
+
+    </div>
+
+    <script>
+        const API_BASE = "http://localhost:8085/api/v1";
+        
+        // State
+        let activeSymbol = "TXN";
+        let activePrice = 311.46;
+        let activeAction = "BUY";
+        let defaultTickers = {
+            "TXN": 311.46,
+            "AVGO": 399.97,
+            "TSM": 434.11,
+            "THO": 72.86,
+            "OMCL": 44.92,
+            "SOUN": 6.64
+        };
+        let nodesState = {
+            "gemini": "approve",
+            "gemma": "approve",
+            "copilot": "pending",
+            "antigravity": "pending"
+        };
+        let priceHistory = [];
+
+        // Canvas context for charting
+        const canvas = document.getElementById("priceChart");
+        const ctx = canvas.getContext("2d");
+
+        // Initialization
+        window.addEventListener('resize', resizeCanvas);
+        
+        function init() {
+            renderWatchlist();
+            renderConsensusNodes();
+            resizeCanvas();
+            fetchData();
+            initRealtimeSSE();
+            
+            // Periodics
+            setInterval(streamMockLogs, 2500);
+            setInterval(randomizeConsensus, 5000);
+        }
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+            drawChart();
+        }
+
+        // Switching Tabs
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabId).classList.add('active');
+            
+            if (tabId === 'charts-tab') {
+                setTimeout(resizeCanvas, 50);
+            }
+        }
+
+        // Render watchlist
+        function renderWatchlist() {
+            const list = document.getElementById("watchlist");
+            list.innerHTML = "";
+            
+            Object.entries(defaultTickers).forEach(([sym, price]) => {
+                const item = document.createElement("div");
+                item.className = `watchlist-item ${sym === activeSymbol ? 'active' : ''}`;
+                item.onclick = () => selectTicker(sym, price);
+                
+                const up = Math.random() > 0.4;
+                const change = (Math.random() * 1.5).toFixed(2);
+                const classColor = up ? "text-up" : "text-down";
+                const sign = up ? "+" : "-";
+
+                item.innerHTML = `
+                    <span class="wl-symbol">${sym}</span>
+                    <div class="wl-price-change">
+                        <span class="wl-price">$${price.toFixed(2)}</span>
+                        <span class="wl-pct ${classColor}">${sign}${change}%</span>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function selectTicker(symbol, price) {
+            activeSymbol = symbol;
+            activePrice = price;
+            
+            document.getElementById("chartSymbol").innerText = symbol;
+            document.getElementById("orderSymbol").value = symbol;
+            document.getElementById("smaVal").innerText = (price * 0.99).toFixed(2);
+            
+            // Regenerate mock candles
+            generateMockCandles();
+            drawChart();
+            renderOptionChain();
+            renderWatchlist();
+        }
+
+        // Render consensus nodes
+        function renderConsensusNodes() {
+            const list = document.getElementById("consensusNodes");
+            list.innerHTML = "";
+            
+            Object.entries(nodesState).forEach(([name, status]) => {
+                const item = document.createElement("div");
+                item.className = "consensus-node";
+                
+                item.innerHTML = `
+                    <div class="node-info">
+                        <div class="node-dot ${status}"></div>
+                        <span class="node-name">${name}</span>
+                    </div>
+                    <span class="node-vote ${status}">${status}</span>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function randomizeConsensus() {
+            const statuses = ["approve", "reject", "pending", "abstain"];
+            nodesState["copilot"] = statuses[Math.floor(Math.random() * 4)];
+            nodesState["antigravity"] = statuses[Math.floor(Math.random() * 3)];
+            renderConsensusNodes();
+        }
+
+        function renderPortfolioData(data) {
+            let positionsVal = 0;
+            const tbody = document.getElementById("holdingsBody");
+            tbody.innerHTML = "";
+            
+            if (data.positions && data.positions.length > 0) {
+                data.positions.forEach(pos => {
+                    const currentVal = pos.qty * pos.cost_basis;
+                    positionsVal += currentVal;
+                    
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td style="font-weight:700; color:var(--neon-yellow);">${pos.symbol}</td>
+                        <td>${pos.qty}</td>
+                        <td>$${pos.cost_basis.toFixed(2)}</td>
+                        <td class="text-up">+$0.00</td>
+                        <td><button class="btn-liq" onclick="liquidateSymbol('${pos.symbol}', ${pos.qty})">Close</button></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+            
+            const netLiq = data.cash + positionsVal;
+            document.getElementById("netLiqValue").innerText = `$${netLiq.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            document.getElementById("cashValue").innerText = `$${data.cash.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            document.getElementById("bpValue").innerText = `$${data.cash.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            if (data.risk_profile) {
+                document.getElementById("leverageValue").innerText = `${data.risk_profile.current_leverage.toFixed(2)} / ${data.risk_profile.max_leverage.toFixed(2)}`;
+            }
+        }
+
+        function renderLineageEntry(entry) {
+            const histTbody = document.getElementById("lineageHistoryBody");
+            
+            // Avoid duplicate rows
+            if (document.getElementById(`row-${entry.lineage_id}`)) return;
+
+            const tr = document.createElement("tr");
+            tr.id = `row-${entry.lineage_id}`;
+            const approvedStr = entry.verdict.approved ? "Approved" : "Rejected";
+            const approvedClass = entry.verdict.approved ? "text-up" : "text-down";
+            
+            tr.innerHTML = `
+                <td>${new Date(entry.timestamp).toLocaleTimeString()}</td>
+                <td style="font-weight:700; color:var(--neon-yellow);">${entry.mutation.symbol}</td>
+                <td>${entry.mutation.qty}</td>
+                <td>${entry.mutation.kind}</td>
+                <td class="${approvedClass}">${approvedStr}</td>
+                <td>${entry.verdict.rationale}</td>
+                <td style="font-family:var(--font-mono); font-size:10px;">${entry.lineage_id}</td>
+            `;
+            
+            if (histTbody.firstChild) {
+                histTbody.insertBefore(tr, histTbody.firstChild);
+            } else {
+                histTbody.appendChild(tr);
+            }
+        }
+
+        let timelineSnapshots = [];
+
+        async function fetchTimeline() {
+            try {
+                const res = await fetch("/api/portfolio/timeline");
+                if (res.ok) {
+                    timelineSnapshots = await res.json();
+                    updateTimeTravelSlider();
+                    updateDiffSelects();
+                }
+            } catch (err) {
+                console.error("Timeline error:", err);
+            }
+        }
+
+        function updateTimeTravelSlider() {
+            const slider = document.getElementById("temporalRange");
+            if (!slider || timelineSnapshots.length === 0) return;
+            slider.max = timelineSnapshots.length - 1;
+        }
+
+        function updateDiffSelects() {
+            const fromSelect = document.getElementById("diffFromSelect");
+            const toSelect = document.getElementById("diffToSelect");
+            if (!fromSelect || !toSelect) return;
+            
+            const currentFromVal = fromSelect.value;
+            const currentToVal = toSelect.value;
+
+            fromSelect.innerHTML = "";
+            toSelect.innerHTML = "";
+
+            timelineSnapshots.forEach(snap => {
+                const opt1 = document.createElement("option");
+                opt1.value = snap.lineage_id;
+                opt1.textContent = `${snap.lineage_id} (${new Date(snap.timestamp).toLocaleTimeString()})`;
+                fromSelect.appendChild(opt1);
+
+                const opt2 = document.createElement("option");
+                opt2.value = snap.lineage_id;
+                opt2.textContent = `${snap.lineage_id} (${new Date(snap.timestamp).toLocaleTimeString()})`;
+                toSelect.appendChild(opt2);
+            });
+
+            if (currentFromVal) fromSelect.value = currentFromVal;
+            if (currentToVal) toSelect.value = currentToVal;
+        }
+
+        async function onTimeTravelSliderChange(index) {
+            const snap = timelineSnapshots[index];
+            if (!snap) return;
+
+            document.getElementById("timeTravelSelectedTime").innerText = `Epoch: ${new Date(snap.timestamp).toLocaleTimeString()}`;
+            document.getElementById("timeTravelSelectedHash").innerText = `Hash: ${snap.lineage_id}`;
+
+            // Preview the historical portfolio state
+            renderPortfolioData(snap.portfolio);
+        }
+
+        async function compareSnapshots() {
+            const from = document.getElementById("diffFromSelect").value;
+            const to = document.getElementById("diffToSelect").value;
+            const diffResults = document.getElementById("diffResults");
+
+            if (!from || !to) {
+                diffResults.textContent = "Please select both from/to snapshots.";
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/portfolio/diff?from=${from}&to=${to}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    let output = `=== Epoch Diff [${from} => ${to}] ===\n`;
+                    output += `Cash Delta: ${data.cash_diff >= 0 ? '+' : ''}$${data.cash_diff.toFixed(2)}\n`;
+                    output += `Position Deltas:\n`;
+                    if (data.position_diffs && data.position_diffs.length > 0) {
+                        data.position_diffs.forEach(d => {
+                            output += `  - ${d.symbol}: Qty Delta: ${d.qty_diff >= 0 ? '+' : ''}${d.qty_diff}, Cost Basis Delta: ${d.cost_diff >= 0 ? '+' : ''}$${d.cost_diff.toFixed(2)}\n`;
+                        });
+                    } else {
+                        output += "  No position adjustments in this range.";
+                    }
+                    diffResults.textContent = output;
+                } else {
+                    diffResults.textContent = "Failed to load snapshot delta.";
+                }
+            } catch (err) {
+                diffResults.textContent = `Error comparing: ${err}`;
+            }
+        }
+
+        function renderGovProposal(entry) {
+            const tbody = document.getElementById("govProposalsBody");
+            if (tbody.rows.length === 1 && tbody.rows[0].cells.length === 1) {
+                tbody.innerHTML = "";
+            }
+            
+            if (document.getElementById(`gov-${entry.lineage_id}`)) return;
+
+            const tr = document.createElement("tr");
+            tr.id = `gov-${entry.lineage_id}`;
+            const actionStr = entry.mutation.kind === "cash_adjust" ? `Cash: $${entry.mutation.amount}` : `${entry.mutation.kind} ${entry.mutation.symbol} Qty: ${entry.mutation.qty}`;
+            
+            tr.innerHTML = `
+                <td style="font-family:var(--font-mono); font-size:10px;">${entry.lineage_id}</td>
+                <td>${actionStr}</td>
+                <td><span class="text-up">Evaluated</span></td>
+            `;
+            tbody.insertBefore(tr, tbody.firstChild);
+        }
+
+        function initRealtimeSSE() {
+            const evtSource = new EventSource("/api/events");
+            
+            evtSource.onmessage = (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    
+                    if (data.type === "verdict") {
+                        console.log("Real-time trade verdict:", data);
+                        randomizeConsensus();
+                    } else if (data.type === "portfolio") {
+                        renderPortfolioData(data.state);
+                        fetchTimeline();
+                    } else if (data.type === "lineage") {
+                        renderLineageEntry(data.entry);
+                        fetchTimeline();
+                        if (data.entry.lineage_id.startsWith("gov-") || data.entry.lineage_id.startsWith("motor-")) {
+                            renderGovProposal(data.entry);
+                        }
+                    }
+                } catch (err) {
+                    console.error("SSE parse error:", err);
+                }
+            };
+            
+            evtSource.onerror = () => {
+                console.warn("SSE connection lost. Retrying connection...");
+            };
+        }
+
+        // Fetch portfolio/positions initial load
+        async function fetchData() {
+            try {
+                const res = await fetch("/api/portfolio/current");
+                if (res.ok) {
+                    const data = await res.json();
+                    renderPortfolioData(data);
+                }
+
+                // Fetch trade history lineage initial load
+                const histRes = await fetch("/api/lineage/trades");
+                if (histRes.ok) {
+                    const history = await histRes.json();
+                    const histTbody = document.getElementById("lineageHistoryBody");
+                    histTbody.innerHTML = "";
+                    
+                    // Display chronological order (older first in backend list, prepending reverses it)
+                    for (let i = history.length - 1; i >= 0; i--) {
+                        renderLineageEntry(history[i]);
+                    }
+                }
+
+                // Initial timeline populate
+                fetchTimeline();
+            } catch (e) {
+                // Quiet fallback
+            }
+        }
+
+        // Options chain generation
+        function renderOptionChain() {
+            const tbody = document.getElementById("optionsChainBody");
+            tbody.innerHTML = "";
+            
+            const strikes = [
+                Math.round(activePrice - 15),
+                Math.round(activePrice - 10),
+                Math.round(activePrice - 5),
+                Math.round(activePrice),
+                Math.round(activePrice + 5),
+                Math.round(activePrice + 10),
+                Math.round(activePrice + 15)
+            ];
+
+            strikes.forEach(strike => {
+                const tr = document.createElement("tr");
+                const callBid = (Math.random() * 4 + 0.2).toFixed(2);
+                const callAsk = (parseFloat(callBid) + 0.10).toFixed(2);
+                const putBid = (Math.random() * 4 + 0.2).toFixed(2);
+                const putAsk = (parseFloat(putBid) + 0.10).toFixed(2);
+
+                tr.innerHTML = `
+                    <td class="clickable-cell" style="color: var(--neon-green);" onclick="selectOption('CALL', ${strike}, ${callAsk})">${callBid}</td>
+                    <td class="clickable-cell" style="color: var(--neon-green);" onclick="selectOption('CALL', ${strike}, ${callAsk})">${callAsk}</td>
+                    <td class="strike-cell">${strike}</td>
+                    <td class="clickable-cell" style="color: var(--neon-red);" onclick="selectOption('PUT', ${strike}, ${putAsk})">${putBid}</td>
+                    <td class="clickable-cell" style="color: var(--neon-red);" onclick="selectOption('PUT', ${strike}, ${putAsk})">${putAsk}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            document.getElementById("chainTitle").innerText = `Option Chain (${activeSymbol} - 17 JUL 26)`;
+        }
+
+        function selectOption(type, strike, price) {
+            document.getElementById("orderSymbol").value = `${activeSymbol} 17JUL26 ${strike} ${type}`;
+            document.getElementById("orderType").value = "LIMIT";
+            document.getElementById("limitPrice").value = price;
+            document.getElementById("limitPriceRow").style.display = "flex";
+            switchTab("charts-tab"); // highlight Order desk on main
+        }
+
+        // Mock Candlestick Chart logic
+        function generateMockCandles() {
+            priceHistory = [];
+            let val = activePrice;
+            for (let i = 0; i < 40; i++) {
+                const open = val + (Math.random() - 0.5) * (val * 0.03);
+                const close = open + (Math.random() - 0.48) * (val * 0.02);
+                const high = Math.max(open, close) + Math.random() * (val * 0.01);
+                const low = Math.min(open, close) - Math.random() * (val * 0.01);
+                priceHistory.push({ open, close, high, low });
+                val = close;
+            }
+        }
+
+        function drawChart() {
+            if (priceHistory.length === 0) generateMockCandles();
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const padding = 20;
+            const chartWidth = canvas.width - padding * 2;
+            const chartHeight = canvas.height - padding * 2;
+            
+            // Find boundaries
+            let maxVal = -Infinity;
+            let minVal = Infinity;
+            priceHistory.forEach(c => {
+                if (c.high > maxVal) maxVal = c.high;
+                if (c.low < minVal) minVal = c.low;
+            });
+            
+            const range = maxVal - minVal;
+            const scaleY = chartHeight / range;
+            const barWidth = chartWidth / priceHistory.length;
+
+            // Draw horizontal grids
+            ctx.strokeStyle = "rgba(30, 41, 59, 0.4)";
+            ctx.lineWidth = 1;
+            for (let i = 1; i <= 4; i++) {
+                const gridY = padding + (chartHeight / 5) * i;
+                ctx.beginPath();
+                ctx.moveTo(padding, gridY);
+                ctx.lineTo(canvas.width - padding, gridY);
+                ctx.stroke();
+            }
+
+            // Draw Candles
+            priceHistory.forEach((c, idx) => {
+                const x = padding + idx * barWidth + barWidth / 2;
+                const openY = canvas.height - padding - (c.open - minVal) * scaleY;
+                const closeY = canvas.height - padding - (c.close - minVal) * scaleY;
+                const highY = canvas.height - padding - (c.high - minVal) * scaleY;
+                const lowY = canvas.height - padding - (c.low - minVal) * scaleY;
+
+                const isUp = c.close >= c.open;
+                ctx.strokeStyle = isUp ? "#10b981" : "#ef4444";
+                ctx.fillStyle = isUp ? "#10b981" : "#ef4444";
+                ctx.lineWidth = 1.5;
+
+                // Wick
+                ctx.beginPath();
+                ctx.moveTo(x, highY);
+                ctx.lineTo(x, lowY);
+                ctx.stroke();
+
+                // Body
+                const bodyH = Math.abs(closeY - openY) || 2;
+                const bodyY = Math.min(openY, closeY);
+                ctx.fillRect(x - barWidth * 0.35, bodyY, barWidth * 0.7, bodyH);
+            });
+        }
+
+        // Order entry toggles
+        function setOrderAction(act) {
+            activeAction = act;
+            const buyBtn = document.getElementById("actionBuyBtn");
+            const sellBtn = document.getElementById("actionSellBtn");
+            const submitBtn = document.getElementById("submitOrderBtn");
+            
+            if (act === "BUY") {
+                buyBtn.classList.add("active");
+                sellBtn.classList.remove("active");
+                submitBtn.className = "submit-btn buy";
+                submitBtn.innerText = "Submit Buy Order";
+            } else {
+                sellBtn.classList.add("active");
+                buyBtn.classList.remove("active");
+                submitBtn.className = "submit-btn sell";
+                submitBtn.innerText = "Submit Sell Order";
+            }
+        }
+
+        document.getElementById("orderType").onchange = (e) => {
+            const limitRow = document.getElementById("limitPriceRow");
+            if (e.target.value === "LIMIT") {
+                limitRow.style.display = "flex";
+                document.getElementById("limitPrice").value = activePrice.toFixed(2);
+            } else {
+                limitRow.style.display = "none";
+            }
+        };
+
+        // Submit order
+        async function submitOrder() {
+            const sym = document.getElementById("orderSymbol").value.toUpperCase();
+            const qty = parseFloat(document.getElementById("orderQty").value);
+            const type = document.getElementById("orderType").value;
+            const limitVal = parseFloat(document.getElementById("limitPrice").value);
+
+            if (!sym || isNaN(qty) || qty <= 0) {
+                alert("Please enter a valid symbol and quantity.");
+                return;
+            }
+
+            const payload = {
+                symbol: sym,
+                qty: qty,
+                cost_basis: type === "LIMIT" ? limitVal : activePrice,
+                kind: activeAction === "BUY" ? "portfolio_add" : "portfolio_remove"
+            };
+
+            try {
+                const res = await fetch("/api/trader/execute", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.approved) {
+                    alert(`Trade Approved!\nLineage ID: ${data.lineage_id}\nVerdict: ${data.rationale}`);
+                } else {
+                    alert(`Trade Denied!\nRationale: ${data.rationale}`);
+                }
+                fetchData();
+            } catch (err) {
+                alert("Failed to submit order to Constitutional Trader Engine.");
+            }
+        }
+
+        // Close position
+        async function liquidateSymbol(symbol, qty) {
+            const payload = {
+                symbol: symbol,
+                qty: qty,
+                action: "SELL",
+                type: "MARKET"
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/orders/place`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                fetchData();
+            } catch (e) {}
+        }
+
+        // Stream fake logs to Mempool Terminal
+        const logs = [
+            "Constructing MEV Bundle for Arbitrage TXN<>AVGO...",
+            "gRPC request dispatched to mev-engine backend",
+            "Simulating arbitrage yield: profit=0.034 ETH gas=0.002",
+            "Oracle price updated in database for TSM: 434.11",
+            "Antigravity node voted APPROVE on Tx block 1928481",
+            "Gemini node voted APPROVE on Tx block 1928481",
+            "Consensus reached on block 1928481. Committing node state.",
+            "Schwab paper execution match: Buy 10 TXN @ 311.46",
+            "Bundle relay submission succeeded. Hash: 0x72a5b...190e"
+        ];
+        
+        function streamMockLogs() {
+            const term = document.getElementById("logTerminal");
+            const entry = document.createElement("div");
+            entry.className = "log-entry";
+            
+            const time = new Date().toLocaleTimeString();
+            const logText = logs[Math.floor(Math.random() * logs.length)];
+            
+            entry.innerHTML = `<span class="time">[${time}]</span> <span class="tag">[AGY-MEV]</span> ${logText}`;
+            term.appendChild(entry);
+            term.scrollTop = term.scrollHeight;
+            
+            // prune old entries
+            while(term.childNodes.length > 50) {
+                term.removeChild(term.firstChild);
+            }
+        }
+
+        // Run
+        init();
+    </script>
+</body>
+</html>
