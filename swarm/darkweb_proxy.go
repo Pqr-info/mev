@@ -139,3 +139,21 @@ func (dwp *DarkWebProxy) QueueOnionScrape(ctx context.Context, targetURL string,
 	return jobID, nil
 }
 
+// HandleOnionRequest handles a direct onion request and returns the body bytes.
+func (dwp *DarkWebProxy) HandleOnionRequest(ctx context.Context, targetURL string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", targetURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := dwp.Client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("bad status code: %d", resp.StatusCode)
+	}
+	return io.ReadAll(resp.Body)
+}
+
+
