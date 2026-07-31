@@ -1,0 +1,16 @@
+{
+  "short_name": "Dolphin Mobile",
+  "name": "Dolphin Whitelabel Social Platform",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='25' fill='%230284c7'/><path d='M25 60 C35 30 65 30 75 60 C60 55 40 55 25 60' fill='white'/><circle cx='65' cy='45' r='4' fill='%230284c7'/></svg>",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0f172a",
+  "theme_color": "#0284c7",
+  "display": "standalone",
+  "orientation": "portrait"
+}

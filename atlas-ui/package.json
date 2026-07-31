@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server": "node server.js",
+    "qa": "node qa_test.js"
   },
   "dependencies": {
     "cors": "^2.8.6",
@@ -15,15 +17,19 @@
     "express": "^5.2.1",
     "ioredis": "^5.11.1",
     "lucide-react": "^1.25.0",
+    "morgan": "^1.10.0",
     "node-telegram-bot-api": "^1.2.0",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^6.0.1"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "oxlint": "^1.71.0",
+    "puppeteer": "^22.0.0",
     "vite": "^8.1.1"
   }
 }

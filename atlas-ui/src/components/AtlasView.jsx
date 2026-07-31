@@ -8,7 +8,7 @@ import ConsensusStabilityPanel from './ConsensusStabilityPanel';
 import WALHeatmap from './WALHeatmap';
 import NodeHealthPanel from './NodeHealthPanel';
 
-const API_BASE = 'http://localhost:8080';
+const API_BASE = '/api';
 
 const NodeCard = ({ node }) => {
   const getStatusIcon = (status) => {

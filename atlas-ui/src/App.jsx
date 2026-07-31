@@ -59,7 +59,7 @@ export default function App() {
         {activeTab === 'marketplace' && <Marketplace />}
         {activeTab === 'portal' && (
           <iframe 
-            src="/dashboard/index.html" 
+            src="/portal.html" 
             style={{ width: '100%', height: '100%', border: 'none' }}
             title="Portal View"
           />
