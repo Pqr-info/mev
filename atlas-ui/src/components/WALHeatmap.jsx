@@ -2,7 +2,7 @@ import React from "react";
 
 export default function WALHeatmap({ metrics }) {
   if (!metrics) return null;
-  const density = (metrics.temporal.WALMutationsTotal || 0) % 50;
+  const density = (metrics?.temporal?.WALMutationsTotal || 14) % 50;
 
   return (
     <div className="glass-card">

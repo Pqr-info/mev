@@ -1,4 +1,11 @@
 {
+  "agents": {
+    "antigravity": {
+      "id": "antigravity",
+      "role": "utility",
+      "status": "active"
+    }
+  },
   "auth": {
     "grafana": {
       "password": "",
@@ -6,23 +13,31 @@
     }
   },
   "endpoints": {
-    "agentsGemini": "http://localhost:8080/agents/gemini",
-    "consensusProposal": "http://localhost:8080/consensus/proposal",
-    "consensusProposals": "http://localhost:8080/consensus/proposals",
-    "consensusRollback": "http://localhost:8080/consensus/rollback",
-    "consensusVote": "http://localhost:8080/consensus/vote",
-    "governanceForecast": "http://localhost:8080/governance/forecast",
-    "governanceLineage": "http://localhost:8080/governance/lineage",
-    "governanceMetrics": "http://localhost:8080/governance/metrics",
-    "governanceSimulate": "http://localhost:8080/governance/simulate",
+    "agentsGemini": "http://localhost:8100/agents/gemini",
+    "consensusProposal": "http://localhost:8100/consensus/proposal",
+    "consensusProposals": "http://localhost:8100/consensus/proposals",
+    "consensusRollback": "http://localhost:8100/consensus/rollback",
+    "consensusVote": "http://localhost:8100/consensus/vote",
+    "governanceForecast": "http://localhost:8100/governance/forecast",
+    "governanceLineage": "http://localhost:8100/governance/lineage",
+    "governanceMetrics": "http://localhost:8100/governance/metrics",
+    "governanceSimulate": "http://localhost:8100/governance/simulate",
     "grafana": "http://localhost:3000",
-    "health": "http://localhost:8080/health",
-    "help": "http://localhost:8080/help",
+    "health": "http://localhost:8100/health",
+    "help": "http://localhost:8100/help",
+    "meshSync": "http://localhost:8080/mesh/sync",
     "metrics": "http://localhost:9091/metrics",
     "prometheus": "http://localhost:9090",
-    "recovery": "http://localhost:8080/healer/trigger-recovery",
-    "ticketApi": "http://localhost:8080/rt/REST/2.0/tickets",
-    "timeslipGen": "http://localhost:8080/timeslip-generator"
+    "recovery": "http://localhost:8100/healer/trigger-recovery",
+    "ticketApi": "http://localhost:8100/rt/REST/2.0/tickets",
+    "timeslipGen": "http://localhost:8100/timeslip-generator",
+    "treasuryEngine": "http://localhost:8080/treasury/tick"
+  },
+  "fs_search_hints": {
+    "atlas_ui_source_code": "C:\\pqr.info\\mev\\atlas-ui",
+    "instruction_for_agents": "ALWAYS search these exact absolute paths when looking for Sovereign-27 system architecture, UI components, or active global ticket memory.",
+    "shared_brain_plugins": "C:\\Users\\theal\\.gemini\\config\\plugins\\shared_brain\\skills",
+    "ticket_matrix_memory": "C:\\Users\\theal\\.gemini\\config\\plugins\\shared_brain\\skills\\s27-ticket-matrix\\SKILL.md"
   },
   "hints": [
     "Use /rt/REST/2.0/tickets for RT-style SOS operations",
@@ -32,6 +47,23 @@
     "alias": "sos-flagship",
     "primary": ""
   },
-  "lastUpdated": "2026-07-20T12:18:34Z",
+  "lastUpdated": "2026-08-04T14:34:50Z",
+  "nodes": {
+    "max": {
+      "identity_broker": false,
+      "inference": true,
+      "role": "primary"
+    },
+    "ted": {
+      "identity_broker": true,
+      "inference": true,
+      "role": "secondary"
+    },
+    "zeta": {
+      "identity_broker": false,
+      "inference": true,
+      "role": "sovereign"
+    }
+  },
   "service": "sos"
 }

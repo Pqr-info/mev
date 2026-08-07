@@ -3,6 +3,9 @@ name = "MEV Engine (TRADER Organ)"
 id = "mev_trader"
 version = "2.0.0"
 role = "constitutional trading & state mutation engine"
+valkey_addr = "100.96.0.1:6379"
+valkey_user = "ALPHA"
+valkey_pass = "f5f77a8e773c48deb6116ff7ccb1735b"
 
 [interfaces]
 ingress = ["mempool.firehose", "dex.state", "arb.node", "substrate.portfolio"]

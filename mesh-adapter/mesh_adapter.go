@@ -161,6 +161,8 @@ func (a *Adapter) StartServer(port string) error {
 	http.HandleFunc("/governance/simulate", a.handleGovernanceSimulate)
 	http.HandleFunc("/governance/metrics", a.handleGovernanceMetrics)
 	http.HandleFunc("/governance/forecast", a.handleGovernanceForecast)
+	http.HandleFunc("/treasury/tick", a.handleTreasuryTick)
+	http.HandleFunc("/mesh/sync", a.handleMeshSync)
 
 	log.Info().Msgf("Mesh Citizen Shell adapter starting on port %s", port)
 	return http.ListenAndServe(":"+port, nil)
@@ -215,6 +217,8 @@ func (a *Adapter) refreshManifest() {
 		"governanceSimulate": "http://localhost:8100/governance/simulate",
 		"governanceMetrics":  "http://localhost:8100/governance/metrics",
 		"governanceForecast": "http://localhost:8100/governance/forecast",
+		"treasuryEngine":     "http://localhost:8080/treasury/tick",
+		"meshSync":           "http://localhost:8080/mesh/sync",
 	}
 	a.manifest["hosts"] = map[string]interface{}{
 		"primary": os.Getenv("SOS_HOSTNAME"),
@@ -926,6 +930,54 @@ func (a *Adapter) handleGovernanceForecast(w http.ResponseWriter, r *http.Reques
 	}
 	defer resp.Body.Close()
 
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(resp.StatusCode)
+	var body bytes.Buffer
+	_, _ = body.ReadFrom(resp.Body)
+	_, _ = w.Write(body.Bytes())
+}
+
+func (a *Adapter) handleTreasuryTick(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	treasuryURL := os.Getenv("TREASURY_URL")
+	if treasuryURL == "" {
+		treasuryURL = "http://localhost:8082"
+	}
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Post(treasuryURL+"/treasury/tick", "application/json", r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(fmt.Sprintf(`{"error":"treasury_unreachable","message":"%s"}`, err.Error())))
+		return
+	}
+	defer resp.Body.Close()
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(resp.StatusCode)
+	var body bytes.Buffer
+	_, _ = body.ReadFrom(resp.Body)
+	_, _ = w.Write(body.Bytes())
+}
+
+func (a *Adapter) handleMeshSync(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	treasuryURL := os.Getenv("TREASURY_URL")
+	if treasuryURL == "" {
+		treasuryURL = "http://localhost:8082"
+	}
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Post(treasuryURL+"/mesh/sync", "application/json", r.Body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(fmt.Sprintf(`{"error":"treasury_unreachable","message":"%s"}`, err.Error())))
+		return
+	}
+	defer resp.Body.Close()
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(resp.StatusCode)
 	var body bytes.Buffer

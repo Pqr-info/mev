@@ -2,6 +2,10 @@
 # Single Source of Truth for Sovereign Mesh Activation
 
 [runlevels]
+[runlevels.global]
+valkey_addr = "100.96.0.1:6379"
+valkey_user = "ALPHA"
+valkey_pass = "f5f77a8e773c48deb6116ff7ccb1735b"
 
 [runlevels.PQRL0]
 name = "Base Infrastructure"

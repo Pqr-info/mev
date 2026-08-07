@@ -1,0 +1,80 @@
+/* ============================================================
+   Color-Adaptive Shimmer - Sovereign Diagnostic Palette
+   ============================================================ */
+
+/* Base shimmer animation */
+@keyframes temporalPulse {
+  0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  50% { transform: translate(-50%, -50%) scale(1.5); opacity: 0.6; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+.diff-marker {
+  border: 2px solid transparent;
+  background: transparent;
+  animation: temporalPulse 2s infinite ease-in-out;
+  transition: all 0.3s ease;
+}
+
+/* TRUST DOWN - red danger */
+.diff-marker.trust-down {
+  border-color: #ff5252;
+  box-shadow: 0 0 18px rgba(255, 82, 82, 0.8);
+  background: rgba(255, 82, 82, 0.3);
+}
+
+/* TRUST UP - green recovery */
+.diff-marker.trust-up {
+  border-color: #00ff99;
+  box-shadow: 0 0 18px rgba(0, 255, 153, 0.8);
+  background: rgba(0, 255, 153, 0.3);
+}
+
+/* SPINE CHANGED - purple DAG instability */
+.diff-marker.spine-changed {
+  border-color: #aa44ff;
+  box-shadow: 0 0 18px rgba(170, 68, 255, 0.8);
+  background: rgba(170, 68, 255, 0.3);
+}
+
+/* TOPOLOGY ADDED - blue expansion */
+.diff-marker.topology-added {
+  border-color: #4fc3f7;
+  box-shadow: 0 0 18px rgba(79, 195, 247, 0.8);
+  background: rgba(79, 195, 247, 0.3);
+}
+
+/* TOPOLOGY REMOVED - red collapse */
+.diff-marker.topology-removed {
+  border-color: #ff5252;
+  box-shadow: 0 0 18px rgba(255, 82, 82, 0.8);
+  background: rgba(255, 82, 82, 0.3);
+}
+
+/* PROPOSAL NEW - orange volatility */
+.diff-marker.proposal-new {
+  border-color: #ffa726;
+  box-shadow: 0 0 18px rgba(255, 167, 38, 0.8);
+  background: rgba(255, 167, 38, 0.3);
+}
+
+/* PROPOSAL RESOLVED - green stabilization */
+.diff-marker.proposal-resolved {
+  border-color: #66bb6a;
+  box-shadow: 0 0 18px rgba(102, 187, 106, 0.8);
+  background: rgba(102, 187, 106, 0.3);
+}
+
+/* FORECAST INCREASED - red/orange risk spike */
+.diff-marker.forecast-increased {
+  border-color: #ff7043;
+  box-shadow: 0 0 18px rgba(255, 112, 67, 0.8);
+  background: rgba(255, 112, 67, 0.3);
+}
+
+/* FORECAST DECREASED - yellow caution */
+.diff-marker.forecast-decreased {
+  border-color: #ffd54f;
+  box-shadow: 0 0 18px rgba(255, 213, 79, 0.8);
+  background: rgba(255, 213, 79, 0.3);
+}

@@ -1,0 +1,57 @@
+.cross-agent-panel {
+  position: absolute;
+  left: 20px;
+  bottom: 20px;
+  width: 360px;
+  background: rgba(5, 5, 9, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 12px;
+  z-index: 180;
+  color: #f5f5f7;
+  backdrop-filter: blur(10px);
+}
+
+.cross-agent-header {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.cross-agent-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cross-agent-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cross-agent-label {
+  width: 60px;
+  font-size: 0.78rem;
+  font-weight: bold;
+}
+
+.cross-agent-sparkline {
+  flex: 1;
+  display: flex;
+  gap: 2px;
+  height: 40px;
+  align-items: flex-end;
+  background: rgba(255,255,255,0.05);
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.cross-trust-point {
+  width: 4px;
+  background: #00ff99;
+  border-radius: 2px;
+  transition: height 0.3s ease;
+}

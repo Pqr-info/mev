@@ -3,8 +3,8 @@ import React from "react";
 export default function TemporalStressGauge({ metrics }) {
   if (!metrics) return null;
   const stress =
-    (metrics.temporal.WALMutationsTotal || 0) +
-    (metrics.temporal.DriftEventsTotal || 0);
+    (metrics?.temporal?.WALMutationsTotal || 0) +
+    (metrics?.temporal?.DriftEventsTotal || 0);
 
   return (
     <div className="glass-card">

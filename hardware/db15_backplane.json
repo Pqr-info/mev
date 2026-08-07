@@ -1,0 +1,22 @@
+{
+  "spec": "Phase 18 DB-15 Hardware Backplane",
+  "connector": "DA-15 (Standard 15-pin Gameport/MIDI)",
+  "purpose": "Physical Tier-3 Proximity Instrument Cluster Backbone",
+  "pinout": {
+    "1": { "name": "VCC_5V", "type": "Power", "description": "5V Supply" },
+    "2": { "name": "BLE_ANT_1", "type": "RF", "description": "PN-Gated BLE Antenna Tx" },
+    "3": { "name": "SRRK_SYNC", "type": "Timing", "description": "SRRK Arbitration Clock" },
+    "4": { "name": "GND", "type": "Ground", "description": "Digital Ground" },
+    "5": { "name": "GND", "type": "Ground", "description": "Digital Ground" },
+    "6": { "name": "BLE_ANT_2", "type": "RF", "description": "PN-Gated BLE Antenna Rx" },
+    "7": { "name": "MIDI_CTRL", "type": "Data", "description": "MIDI Concert Protocol Triggers" },
+    "8": { "name": "VCC_3V3", "type": "Power", "description": "3.3V Logic Supply" },
+    "9": { "name": "UDP_PHY_TX", "type": "Data", "description": "MultiPath UDP Transmit" },
+    "10": { "name": "UDP_PHY_RX", "type": "Data", "description": "MultiPath UDP Receive" },
+    "11": { "name": "PN_GATE_CLK", "type": "Timing", "description": "Hardware DSP PN-Sequence Clock" },
+    "12": { "name": "MIDI_TX", "type": "Data", "description": "Legacy/SysEx MIDI TX Fallback" },
+    "13": { "name": "MIDI_RX", "type": "Data", "description": "Legacy/SysEx MIDI RX Fallback" },
+    "14": { "name": "USB_D_PLUS", "type": "Data", "description": "USB CDC Fallback Data+" },
+    "15": { "name": "USB_D_MINUS", "type": "Data", "description": "USB CDC Fallback Data-" }
+  }
+}

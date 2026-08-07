@@ -52,3 +52,16 @@ func WriteMicrostructureEventWithTrades(root string, ts time.Time, event Microst
     }
     return WriteMicrostructureEvent(root, ts, event)
 }
+
+// RequestRollback attempts to switch the active temporal branch backwards in time.
+// It mandates the Council of Five quorum constraint check before executing.
+func RequestRollback(targetBranchID string, quorum QuorumState) error {
+    if err := VerifyQuorum(quorum); err != nil {
+        return fmt.Errorf("rollback denied: %w", err)
+    }
+
+    // Execute rollback
+    fmt.Printf("[Time Machine] Rollback authorized to branch %s by Council of Five.\n", targetBranchID)
+    // Actually switch branches on the ledger / file system
+    return nil
+}

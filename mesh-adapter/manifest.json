@@ -12,16 +12,38 @@
     "prometheus": "http://localhost:9090",
     "recovery": "http://localhost:8080/healer/trigger-recovery",
     "ticketApi": "http://localhost:8080/rt/REST/2.0/tickets",
-    "timeslipGen": "http://localhost:8080/timeslip-generator"
+    "timeslipGen": "http://localhost:8080/timeslip-generator",
+    "treasuryEngine": "http://localhost:8080/treasury/tick",
+    "meshSync": "http://localhost:8080/mesh/sync"
   },
   "hints": [
     "Use /rt/REST/2.0/tickets for RT-style SOS operations",
     "Ouroboros should own restarts and health reconciliation"
   ],
-  "hosts": {
-    "alias": "sos-flagship",
-    "primary": ""
+  "nodes": {
+    "zeta": {
+      "role": "sovereign",
+      "inference": true,
+      "identity_broker": false
+    },
+    "max": {
+      "role": "primary",
+      "inference": true,
+      "identity_broker": false
+    },
+    "ted": {
+      "role": "secondary",
+      "inference": true,
+      "identity_broker": true
+    }
   },
-  "lastUpdated": "2026-07-12T08:15:01Z",
-  "service": "sos"
+  "lastUpdated": "2026-08-04T12:00:00Z",
+  "service": "sos",
+  "agents": {
+    "antigravity": {
+      "id": "antigravity",
+      "role": "utility",
+      "status": "active"
+    }
+  }
 }
